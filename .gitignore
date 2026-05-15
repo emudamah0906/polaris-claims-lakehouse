@@ -1,0 +1,107 @@
+# ── Python ────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+.venv/
+venv/
+ENV/
+env/
+
+# ── uv / pip ──────────────────────────────────────────────────────────────
+.uv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ── pytest / coverage ─────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+
+# ── Type checkers ─────────────────────────────────────────────────────────
+.mypy_cache/
+.pyre/
+.pytype/
+.ruff_cache/
+
+# ── Spark / Delta ─────────────────────────────────────────────────────────
+metastore_db/
+spark-warehouse/
+derby.log
+*.crc
+_SUCCESS
+
+# ── Streaming checkpoints (keep dir, ignore contents) ─────────────────────
+streaming/spark_streaming/checkpoints/*
+!streaming/spark_streaming/checkpoints/.gitkeep
+
+# ── dbt ───────────────────────────────────────────────────────────────────
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+dbt/profiles/profiles.yml
+
+# ── Great Expectations ────────────────────────────────────────────────────
+quality/great_expectations/uncommitted/
+quality/great_expectations/data_docs/
+
+# ── Airflow ───────────────────────────────────────────────────────────────
+orchestration/airflow/logs/
+orchestration/airflow/.airflowctl/
+
+# ── Terraform ─────────────────────────────────────────────────────────────
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+*.tfvars
+!example.tfvars
+.terraform.tfstate.lock.info
+
+# ── Docker ────────────────────────────────────────────────────────────────
+.docker/
+
+# ── Secrets — belt & braces ───────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p8
+*.p12
+secrets/
+credentials/
+
+# ── IDE / OS ──────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ── Databricks ────────────────────────────────────────────────────────────
+.databricks/
+.databrickscfg
+
+# ── Notebooks ─────────────────────────────────────────────────────────────
+*.ipynb_checkpoints/

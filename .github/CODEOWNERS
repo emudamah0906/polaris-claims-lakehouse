@@ -1,0 +1,9 @@
+# Default owner for everything.
+*       @emudamah0906
+
+# Per-area owners (single-author project today; placeholders for future contributors).
+/dbt/                 @emudamah0906
+/streaming/           @emudamah0906
+/infra/terraform/     @emudamah0906
+/security/            @emudamah0906
+/docs/adr/            @emudamah0906
