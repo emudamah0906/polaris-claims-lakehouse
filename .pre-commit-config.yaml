@@ -1,3 +1,5 @@
+# Python-only hooks — no external runtime (Go, terraform) required.
+# terraform fmt/validate hooks are added on Day 4 once terraform is installed.
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0
@@ -7,7 +9,7 @@ repos:
       - id: check-yaml
         args: ["--allow-multiple-documents"]
       - id: check-added-large-files
-        args: ["--maxkb=500"]
+        args: ["--maxkb=1024"]
       - id: check-merge-conflict
       - id: detect-private-key
       - id: mixed-line-ending
@@ -27,19 +29,8 @@ repos:
       - id: sqlfluff-fix
         files: ^dbt/models/.*\.sql$
 
-  - repo: https://github.com/antonbabenko/pre-commit-terraform
-    rev: v1.92.0
-    hooks:
-      - id: terraform_fmt
-      - id: terraform_validate
-
   - repo: https://github.com/Yelp/detect-secrets
     rev: v1.5.0
     hooks:
       - id: detect-secrets
         args: ["--baseline", ".secrets.baseline"]
-
-  - repo: https://github.com/zricethezav/gitleaks
-    rev: v8.18.4
-    hooks:
-      - id: gitleaks

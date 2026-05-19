@@ -5,6 +5,15 @@ description = "Polaris — P&C insurance claims lakehouse (workspace root)"
 requires-python = ">=3.11"
 readme = "README.md"
 license = { text = "MIT" }
+dependencies = [
+    "confluent-kafka>=2.5",
+]
+
+[tool.uv]
+# Repo root is a dev-tooling + config holder, not an installable package.
+# Real packages (ingestion/, streaming/, databricks/libraries/) are added
+# as their own uv projects later.
+package = false
 
 [dependency-groups]
 dev = [

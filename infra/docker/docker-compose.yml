@@ -1,0 +1,74 @@
+# Polaris local stack — Day 1: Kafka (KRaft) + Confluent Schema Registry.
+# Brought up by `make up`. Airflow, Marquez, and Grafana are added on later days.
+name: polaris
+
+services:
+  # ── Kafka broker ───────────────────────────────────────────────────────────
+  # Single-node KRaft mode: one process is BOTH broker and controller, so there
+  # is no separate ZooKeeper. Production runs three brokers (ADR-0001); one is
+  # enough for local development.
+  kafka:
+    image: confluentinc/cp-kafka:7.7.1
+    container_name: polaris-kafka
+    ports:
+      - "9092:9092"            # host-facing listener — our Python scripts use this
+    environment:
+      # --- KRaft identity ---
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: "broker,controller"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
+      CLUSTER_ID: "polaris-kraft-cluster-00001"
+
+      # --- Listeners ---
+      # Two PLAINTEXT listeners, because clients reach Kafka from two places:
+      #   HOST   -> Python producer/consumer running on the laptop
+      #   DOCKER -> other containers (Schema Registry) on the compose network
+      # Kafka tells each client an address; that address must be resolvable
+      # FROM WHERE THE CLIENT RUNS. localhost works from the host; the service
+      # name `kafka` works from inside the compose network. Hence two listeners.
+      KAFKA_LISTENERS: "HOST://0.0.0.0:9092,DOCKER://0.0.0.0:29092,CONTROLLER://0.0.0.0:9093"
+      KAFKA_ADVERTISED_LISTENERS: "HOST://localhost:9092,DOCKER://kafka:29092"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "HOST:PLAINTEXT,DOCKER:PLAINTEXT,CONTROLLER:PLAINTEXT"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "DOCKER"
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+
+      # --- Single-broker replication settings ---
+      # Internal topics default to replication factor 3; with one broker that
+      # fails. Force them to 1 for local dev only.
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+
+  # ── Schema Registry ────────────────────────────────────────────────────────
+  # Stores Avro/Protobuf schemas for our Kafka topics and enforces compatibility.
+  # Reaches Kafka over the DOCKER listener (kafka:29092), not the host one.
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.7.1
+    container_name: polaris-schema-registry
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8081:8081"
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: "schema-registry"
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: "kafka:29092"
+      SCHEMA_REGISTRY_LISTENERS: "http://0.0.0.0:8081"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8081/subjects"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+volumes:
+  kafka-data:

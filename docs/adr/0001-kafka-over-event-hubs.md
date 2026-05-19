@@ -18,7 +18,7 @@ The platform is otherwise Azure-native (ADLS, Databricks, Key Vault), which woul
 
 ## Decision
 
-Use **Apache Kafka 3.7 in Docker** (KRaft mode, three-broker cluster) with the **Confluent Schema Registry** for the FNOL streaming layer. Producers and consumers use the official `confluent-kafka` Python and JVM clients with `enable.idempotence=true` and transactional writes (`transactional.id` set per producer instance).
+Use **Apache Kafka in Docker** (KRaft mode) with the **Confluent Schema Registry** for the FNOL streaming layer. Local development runs a single combined broker/controller node; the production target runs a three-broker cluster. Producers and consumers use the official `confluent-kafka` Python and JVM clients with `enable.idempotence=true` and transactional writes (`transactional.id` set per producer instance).
 
 ## Alternatives considered
 
