@@ -1,0 +1,42 @@
+polaris:
+  target: dev
+  outputs:
+    dev:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      user: "{{ env_var('SNOWFLAKE_USER') }}"
+      private_key_path: "{{ env_var('SNOWFLAKE_PRIVATE_KEY_PATH') }}"
+      private_key_passphrase: "{{ env_var('SNOWFLAKE_PRIVATE_KEY_PASSPHRASE', '') }}"
+      role: "{{ env_var('SNOWFLAKE_ROLE', 'POLARIS_DEV') }}"
+      database: "{{ env_var('SNOWFLAKE_DATABASE', 'POLARIS_DEV') }}"
+      warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE', 'POLARIS_WH_XS') }}"
+      schema: "{{ env_var('SNOWFLAKE_SCHEMA', 'DBT_' ~ env_var('USER', 'LOCAL') | upper) }}"
+      threads: 4
+      client_session_keep_alive: false
+      query_tag: "polaris-dbt-dev"
+
+    ci:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      user: "{{ env_var('SNOWFLAKE_USER') }}"
+      private_key: "{{ env_var('SNOWFLAKE_PRIVATE_KEY') }}"
+      role: POLARIS_CI
+      database: POLARIS_CI
+      warehouse: POLARIS_WH_XS
+      schema: "{{ env_var('DBT_CI_SCHEMA', 'dbt_ci_pr') }}"
+      threads: 8
+      client_session_keep_alive: false
+      query_tag: "polaris-dbt-ci"
+
+    prod:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      user: "{{ env_var('SNOWFLAKE_USER') }}"
+      private_key: "{{ env_var('SNOWFLAKE_PRIVATE_KEY') }}"
+      role: POLARIS_PROD
+      database: POLARIS_PROD
+      warehouse: POLARIS_WH_S
+      schema: analytics
+      threads: 8
+      client_session_keep_alive: false
+      query_tag: "polaris-dbt-prod"

@@ -1,0 +1,51 @@
+name: polaris
+version: 1.0.0
+config-version: 2
+
+profile: polaris
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+snapshot-paths: ["snapshots"]
+macro-paths: ["macros"]
+analysis-paths: ["analyses"]
+
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+  - "logs"
+
+require-dbt-version: [">=1.8.0", "<2.0.0"]
+
+models:
+  polaris:
+    staging:
+      +materialized: view
+      +schema: staging
+    intermediate:
+      +materialized: ephemeral
+    marts:
+      +materialized: table
+      claims:
+        +schema: marts_claims
+      fraud:
+        +schema: marts_fraud
+      finance:
+        +schema: marts_finance
+      actuarial:
+        +schema: marts_actuarial
+
+snapshots:
+  polaris:
+    +target_schema: snapshots
+    +strategy: timestamp
+    +updated_at: updated_at
+
+seeds:
+  polaris:
+    +schema: seeds
+
+vars:
+  fnol_late_arrival_window_days: 7

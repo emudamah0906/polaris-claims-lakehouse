@@ -58,7 +58,7 @@ streaming/spark_streaming/checkpoints/*
 dbt/target/
 dbt/dbt_packages/
 dbt/logs/
-dbt/profiles/profiles.yml
+dbt/profiles/profiles.local.yml
 
 # ── Great Expectations ────────────────────────────────────────────────────
 quality/great_expectations/uncommitted/
