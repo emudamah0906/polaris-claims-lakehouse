@@ -105,3 +105,8 @@ Thumbs.db
 
 # ── Notebooks ─────────────────────────────────────────────────────────────
 *.ipynb_checkpoints/
+
+# ── Generated data (reproducible via scripts/generate_polaris_data.py) ────
+data/raw/
+data/staged/
+!data/.gitkeep
