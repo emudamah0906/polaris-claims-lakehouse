@@ -1,5 +1,9 @@
 # Polaris — A Property & Casualty Insurance Claims Lakehouse
 
+> **Scope:** this is a design specification, not a running system. It contains 8 architecture
+> decision records, the target design, and scaffolding. The technology list below is the
+> *proposed* stack for the design, not a claim of production experience with each item.
+
 > Production-grade P&C insurance claims lakehouse on Azure + Snowflake. Medallion (Bronze/Silver/Gold) with PySpark on Databricks and dbt; real-time FNOL fraud streaming via Kafka + Structured Streaming; orchestrated by Airflow; Terraform IaC; Azure Key Vault + GitHub OIDC; Great Expectations, OpenLineage, and an ADR for every key trade-off.
 
 **Status:** in active development.
