@@ -94,3 +94,59 @@ def test_cli_rerun_lands_identical_bytes(tmp_path):
         "claim_payments/year=2026/month=10/day=16/part-00000.csv",
         "_markers/ingest_date=2026-10-16/_SUCCESS",
     }
+
+
+# ── AdlsSink, with a fake Azure client so no network is needed ────────────────
+from azure.core.exceptions import ResourceNotFoundError  # noqa: E402
+
+from polaris_ingest.landing.sinks import AdlsSink, make_sink  # noqa: E402
+
+
+class FakeFile:
+    def __init__(self, store, key):
+        self.store, self.key = store, key
+
+    def upload_data(self, data, overwrite):
+        assert overwrite is True  # a retry must replace, not fail on "exists"
+        self.store[self.key] = data
+
+    def delete_file(self):
+        if self.key not in self.store:
+            raise ResourceNotFoundError("not found")
+        del self.store[self.key]
+
+
+class FakeFileSystem:
+    def __init__(self):
+        self.store: dict[str, bytes] = {}
+
+    def get_file_client(self, key):
+        return FakeFile(self.store, key)
+
+
+def test_adls_sink_write_delete():
+    fs = FakeFileSystem()
+    sink = AdlsSink("polarisabc123", "bronze", file_system_client=fs)
+    loc = sink.write("claims/x.csv", b"data")
+    assert loc == "abfss://bronze@polarisabc123.dfs.core.windows.net/claims/x.csv"
+    assert fs.store == {"claims/x.csv": b"data"}
+    sink.delete("claims/x.csv")
+    sink.delete("claims/x.csv")  # missing file is fine
+    assert fs.store == {}
+
+
+def test_land_day_on_adls_matches_local(tmp_path):
+    # Same day through both sinks gives the same keys and the same bytes
+    from polaris_ingest.sources.synthetic import generate
+
+    tables = generate(D1)
+    fs = FakeFileSystem()
+    land_day(AdlsSink("acct", "bronze", file_system_client=fs), tables, D1)
+    land_day(LocalSink(tmp_path), tables, D1)
+    local = {str(p.relative_to(tmp_path)): p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()}
+    assert fs.store == local
+
+
+def test_azure_backend_needs_account():
+    with pytest.raises(ValueError, match="ADLS_ACCOUNT_NAME"):
+        make_sink("azure", account=None)

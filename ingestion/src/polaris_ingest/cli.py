@@ -2,6 +2,7 @@
 
     polaris-ingest run --ingest-date 2026-10-16
     polaris-ingest run --ingest-date 2026-10-17 --day 2
+    polaris-ingest run --ingest-date 2026-10-16 --backend azure --account polarisxxxxxx
 
 --ingest-date is required on purpose. Airflow passes the run's logical date,
 so a retry of Tuesday's run lands Tuesday's data, even if it runs on Wednesday.
@@ -10,6 +11,7 @@ so a retry of Tuesday's run lands Tuesday's data, even if it runs on Wednesday.
 from __future__ import annotations
 
 import argparse
+import os
 from datetime import date
 
 from polaris_ingest.landing.bronze import land_day
@@ -27,12 +29,17 @@ def main(argv: list[str] | None = None) -> None:
     run.add_argument("--day", type=int, choices=[1, 2], default=1,
                      help="1 = baseline, 2 = refresh of the previous day's baseline")
     run.add_argument("--seed", type=int, default=42)
-    run.add_argument("--backend", choices=["local"], default="local")
+    run.add_argument("--backend", choices=["local", "azure"], default="local")
     run.add_argument("--root", default="data/bronze", help="Bronze root folder (local backend)")
+    run.add_argument("--account", default=os.environ.get("ADLS_ACCOUNT_NAME"),
+                     help="Storage account (azure backend). Defaults to $ADLS_ACCOUNT_NAME")
+    run.add_argument("--container", default=os.environ.get("ADLS_CONTAINER_BRONZE", "bronze"),
+                     help="Container (azure backend). Defaults to $ADLS_CONTAINER_BRONZE or bronze")
     args = parser.parse_args(argv)
 
+    # Build the sink before generating, so a missing --account fails in a second
+    sink = make_sink(args.backend, args.root, args.account, args.container)
     tables = generate(args.ingest_date, day=args.day, seed=args.seed)
-    sink = make_sink(args.backend, args.root)
     locations = land_day(sink, tables, args.ingest_date)
 
     print(f"[polaris-ingest] ingest_date={args.ingest_date} day={args.day} seed={args.seed}")
