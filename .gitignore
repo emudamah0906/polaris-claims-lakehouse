@@ -111,4 +111,5 @@ Thumbs.db
 # ── Generated data (reproducible via scripts/generate_polaris_data.py) ────
 data/raw/
 data/staged/
+data/bronze/
 !data/.gitkeep

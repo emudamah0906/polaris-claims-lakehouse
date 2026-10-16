@@ -7,13 +7,20 @@ readme = "README.md"
 license = { text = "MIT" }
 dependencies = [
     "confluent-kafka>=2.5",
+    "polaris-ingest",
 ]
 
 [tool.uv]
 # Repo root is a dev-tooling + config holder, not an installable package.
-# Real packages (ingestion/, streaming/, databricks/libraries/) are added
-# as their own uv projects later.
+# Real packages live in their own folders and join the workspace below, so
+# one `uv sync` at the root installs them all into one .venv.
 package = false
+
+[tool.uv.workspace]
+members = ["ingestion"]
+
+[tool.uv.sources]
+polaris-ingest = { workspace = true }
 
 [dependency-groups]
 dev = [
