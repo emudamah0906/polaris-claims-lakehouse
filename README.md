@@ -8,15 +8,17 @@
 
 ## Build progress
 
-The design is complete (8 ADRs). The build follows the seven-stage plan, one
-stage per pull request. A stage is marked done only after it has run against
+The design is complete (8 ADRs). The build follows the seven-stage plan, plus
+2b and 2c to cover more ingestion patterns, one stage per pull request. A stage is marked done only after it has run against
 real infrastructure.
 
 | Stage | What | Status |
 |---|---|---|
 | 0 | Repo hygiene: rescued GE suites, Makefile and README fixes | Done |
 | 1 | Foundation: Snowflake Terraform (database, schemas, warehouses, RBAC, credit cap), local Kafka stack, ADRs | Done: applied 15 Oct 2026, 39 resources, re-plan clean |
-| 2 | Bronze ingestion: Python CLI → ADLS | Not started |
+| 2 | Bronze ingestion: Python CLI → ADLS (file-drop batch) | In progress: local Bronze and ADLS storage done |
+| 2b | Incremental extract: Postgres claims system → Bronze with an `updated_at` watermark | Not started |
+| 2c | Azure Data Factory: landing → Bronze copy with a row-count check | Not started |
 | 3 | Silver: PySpark SCD2 on Databricks | Not started |
 | 4 | Streaming: Kafka FNOL producer + Spark Structured Streaming | Not started (Kafka stack runs locally) |
 | 5 | Snowflake landing: COPY INTO from the ADLS external stage | Not started |
