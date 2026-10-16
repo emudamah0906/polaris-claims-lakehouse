@@ -15,7 +15,7 @@ real infrastructure.
 | Stage | What | Status |
 |---|---|---|
 | 0 | Repo hygiene: rescued GE suites, Makefile and README fixes | Done |
-| 1 | Foundation: Snowflake Terraform (database, schemas, warehouses, RBAC, credit cap), local Kafka stack, ADRs | Terraform written, **not yet applied** |
+| 1 | Foundation: Snowflake Terraform (database, schemas, warehouses, RBAC, credit cap), local Kafka stack, ADRs | Done: applied 15 Oct 2026, 39 resources, re-plan clean |
 | 2 | Bronze ingestion: Python CLI → ADLS | Not started |
 | 3 | Silver: PySpark SCD2 on Databricks | Not started |
 | 4 | Streaming: Kafka FNOL producer + Spark Structured Streaming | Not started (Kafka stack runs locally) |

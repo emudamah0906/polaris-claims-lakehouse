@@ -4,8 +4,8 @@ Everything Polaris needs inside Snowflake, written as code: the database, one
 schema per layer, two warehouses, three roles and a credit cap. No clicking
 around Snowsight after the one-time bootstrap below.
 
-> **Status:** code written, not yet applied. Tick the checklist at the bottom
-> once `terraform apply` has run against a real account.
+> **Status:** applied 15 Oct 2026 to a Snowflake trial account. 39 resources
+> created, second plan clean, analyst grants checked. See the checklist at the bottom.
 
 ## What gets created
 
@@ -100,7 +100,7 @@ Azure side exists, which is what CI needs before it can apply safely.
 
 ## Applied checklist
 
-- [ ] `terraform plan` showed 39 to add
-- [ ] `terraform apply` finished clean
-- [ ] `SHOW GRANTS TO ROLE POLARIS_ANALYST_ROLE;` shows only USAGE + SELECT
-- [ ] Second `terraform plan` shows no changes
+- [x] `terraform plan` showed 39 to add
+- [x] `terraform apply` finished clean
+- [x] `SHOW GRANTS TO ROLE POLARIS_ANALYST_ROLE;` shows only USAGE (4 rows; SELECT rows appear once dbt creates tables)
+- [x] Second `terraform plan` shows no changes
