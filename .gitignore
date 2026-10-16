@@ -76,6 +76,8 @@ orchestration/airflow/.airflowctl/
 *.tfvars
 !example.tfvars
 .terraform.tfstate.lock.info
+tfplan
+*.tfplan
 
 # ── Docker ────────────────────────────────────────────────────────────────
 .docker/

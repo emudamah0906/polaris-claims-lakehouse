@@ -1,0 +1,40 @@
+{
+  "data_asset_type": null,
+  "expectation_suite_name": "raw_claims",
+  "expectations": [
+    {
+      "expectation_type": "expect_table_row_count_to_be_between",
+      "kwargs": {"min_value": 100, "max_value": 10000000}
+    },
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": {"column": "CLAIM_ID"}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_unique",
+      "kwargs": {"column": "CLAIM_ID"}
+    },
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": {"column": "POLICY_NUMBER"}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_between",
+      "kwargs": {"column": "CLAIM_AMOUNT", "min_value": 0, "max_value": 5000000}
+    },
+    {
+      "expectation_type": "expect_column_pair_values_A_to_be_greater_than_or_equal_to_B",
+      "kwargs": {"column_A": "CLAIM_DATE", "column_B": "INCIDENT_DATE", "or_equal": true},
+      "meta": {"rationale": "Incident must occur on or before the claim is filed."}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "CLAIM_STATUS",
+        "value_set": ["Paid", "Approved", "Settled", "Denied", "Rejected", "Under Review", "Pending", "Open"]
+      }
+    }
+  ],
+  "ge_cloud_id": null,
+  "meta": {"great_expectations_version": "0.18.19"}
+}

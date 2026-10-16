@@ -6,7 +6,22 @@
 
 > Production-grade P&C insurance claims lakehouse on Azure + Snowflake. Medallion (Bronze/Silver/Gold) with PySpark on Databricks and dbt; real-time FNOL fraud streaming via Kafka + Structured Streaming; orchestrated by Airflow; Terraform IaC; Azure Key Vault + GitHub OIDC; Great Expectations, OpenLineage, and an ADR for every key trade-off.
 
-**Status:** in active development.
+## Build progress
+
+The design is complete (8 ADRs). The build follows the seven-stage plan, one
+stage per pull request. A stage is marked done only after it has run against
+real infrastructure.
+
+| Stage | What | Status |
+|---|---|---|
+| 0 | Repo hygiene: rescued GE suites, Makefile and README fixes | Done |
+| 1 | Foundation: Snowflake Terraform (database, schemas, warehouses, RBAC, credit cap), local Kafka stack, ADRs | Terraform written, **not yet applied** |
+| 2 | Bronze ingestion: Python CLI → ADLS | Not started |
+| 3 | Silver: PySpark SCD2 on Databricks | Not started |
+| 4 | Streaming: Kafka FNOL producer + Spark Structured Streaming | Not started (Kafka stack runs locally) |
+| 5 | Snowflake landing: COPY INTO from the ADLS external stage | Not started |
+| 6 | dbt Gold marts | Scaffolding only |
+| 7 | Orchestration, data quality, lineage, BI | Not started |
 
 ---
 
@@ -41,13 +56,13 @@ sources → Python ingest → ADLS Bronze → Spark Silver (batch + streaming)
 ```bash
 make bootstrap     # install pre-commit hooks + Python deps
 cp .env.example .env && $EDITOR .env
-make up            # start local Airflow + Kafka + Marquez + Grafana
-make seed          # land Synthea + Kaggle samples into Bronze
-make stream &      # start the FNOL Kafka producer
-make dbt-build     # run the full dbt build against Snowflake dev target
+make up            # start local Kafka + Schema Registry
+make tf-init       # Snowflake Terraform; see infra/terraform/snowflake/README.md first
+make tf-plan
 ```
 
-Full setup notes will land in `docs/runbooks/local-dev.md` as the build progresses.
+Targets for later stages (`seed`, `stream`, `dbt-build`, `ge-run`) are in the
+Makefile already but won't work until their stage lands.
 
 ## Repo layout
 
@@ -97,7 +112,7 @@ Two complementary layers, deliberately:
 - CI uses GitHub OIDC federation to Azure — no long-lived PATs in repository secrets.
 - Snowflake authentication uses key-pair (RSA), not passwords.
 - RBAC is managed in Terraform under `infra/terraform/snowflake/`.
-- See [`security/threat-model.md`](security/threat-model.md) for the STRIDE-lite analysis.
+- A STRIDE-lite threat model is planned for `security/threat-model.md`.
 
 ## License
 

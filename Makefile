@@ -8,7 +8,7 @@ help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
 
 # ── Local stack ────────────────────────────────────────────────────────────
-up: ## Start local stack (airflow + kafka + marquez + grafana)
+up: ## Start local stack (Kafka + Schema Registry; more services arrive with later stages)
 	$(COMPOSE) up -d
 
 down: ## Stop local stack
@@ -34,19 +34,29 @@ dbt-build: ## Run full dbt build (run + test)
 dbt-test: ## Run dbt tests only
 	cd dbt && dbt test --target dev
 
-ge-run: ## Run all Great Expectations checkpoints
-	uv run great_expectations checkpoint run silver_checkpoint
+ge-run: ## Run the RAW Great Expectations checkpoint (needs Stage 5 RAW tables)
+	cd quality/great_expectations && uv run great_expectations checkpoint run raw_polaris
+
+# ── Infra (Snowflake Terraform; run init once first) ─────────────────────────
+tf-init: ## terraform init for the Snowflake stack
+	terraform -chdir=infra/terraform/snowflake init
+
+tf-plan: ## terraform plan for the Snowflake stack (writes tfplan)
+	terraform -chdir=infra/terraform/snowflake plan -out tfplan
+
+tf-apply: ## Apply the saved tfplan
+	terraform -chdir=infra/terraform/snowflake apply tfplan
 
 # ── Code quality ───────────────────────────────────────────────────────────
 lint: ## Lint everything (ruff + sqlfluff + terraform fmt-check)
 	uv run ruff check .
 	uv run sqlfluff lint dbt/models
-	terraform -chdir=infra/terraform/azure fmt -check -recursive
+	terraform -chdir=infra/terraform fmt -check -recursive
 
 fmt: ## Format everything
 	uv run ruff format .
 	uv run sqlfluff fix dbt/models
-	terraform -chdir=infra/terraform/azure fmt -recursive
+	terraform -chdir=infra/terraform fmt -recursive
 
 test: ## Run all unit tests
 	uv run pytest
@@ -56,4 +66,4 @@ bootstrap: ## One-time: install pre-commit hooks + python deps
 	uv sync --all-extras
 	uv run pre-commit install
 
-.PHONY: help up down logs seed ingest stream dbt-build dbt-test ge-run lint fmt test bootstrap
+.PHONY: help up down logs seed ingest stream dbt-build dbt-test ge-run tf-init tf-plan tf-apply lint fmt test bootstrap

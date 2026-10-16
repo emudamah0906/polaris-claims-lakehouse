@@ -1,0 +1,58 @@
+{
+  "data_asset_type": null,
+  "expectation_suite_name": "raw_customers",
+  "expectations": [
+    {
+      "expectation_type": "expect_table_row_count_to_be_between",
+      "kwargs": {"min_value": 1000, "max_value": 1000000},
+      "meta": {"rationale": "Floor: must have at least a thousand. Ceiling: catch runaway loads."}
+    },
+    {
+      "expectation_type": "expect_column_to_exist",
+      "kwargs": {"column": "CUSTOMER_ID"}
+    },
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": {"column": "CUSTOMER_ID"}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_unique",
+      "kwargs": {"column": "CUSTOMER_ID"}
+    },
+    {
+      "expectation_type": "expect_column_values_to_match_regex",
+      "kwargs": {"column": "CUSTOMER_ID", "regex": "^CUST\\d{5}$"},
+      "meta": {"rationale": "Surrogate ID pattern from the ingest contract."}
+    },
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": {"column": "PROVINCE"}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "PROVINCE",
+        "value_set": ["AB","BC","MB","NB","NL","NS","NT","NU","ON","PE","QC","SK","YT"]
+      },
+      "meta": {"rationale": "Two-letter Canadian province codes."}
+    },
+    {
+      "expectation_type": "expect_column_values_to_match_regex",
+      "kwargs": {"column": "POSTAL_CODE", "regex": "^[A-Z]\\d[A-Z] ?\\d[A-Z]\\d$"},
+      "meta": {"rationale": "Canada Post format A1A 1A1 (space optional)."}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_between",
+      "kwargs": {"column": "DATE_OF_BIRTH", "min_value": "1900-01-01", "max_value": "2026-01-01"},
+      "meta": {"rationale": "Plausibility band."}
+    }
+  ],
+  "ge_cloud_id": null,
+  "meta": {
+    "great_expectations_version": "0.18.19",
+    "notes": {
+      "format": "markdown",
+      "content": "Owner: polaris-de. Edited by: build_sprint_1. Hard-stop on failure (checkpoint.action_list)."
+    }
+  }
+}
