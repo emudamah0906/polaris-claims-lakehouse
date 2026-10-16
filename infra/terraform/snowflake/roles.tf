@@ -9,14 +9,19 @@
 # "future" covers tables created later. Without "future", every new dbt model
 # would be invisible to analysts until someone re-ran the grant.
 
+# for_each needs every key at plan time. Schema names are only known after
+# apply, so the keys are fixed words written here and the names sit in the values.
 locals {
-  raw          = snowflake_schema.raw.fully_qualified_name
-  analyst_read = [snowflake_schema.staging.fully_qualified_name, snowflake_schema.marts.fully_qualified_name]
-  dbt_targets = [
-    snowflake_schema.staging.fully_qualified_name,
-    snowflake_schema.intermediate.fully_qualified_name,
-    snowflake_schema.marts.fully_qualified_name,
-  ]
+  raw = snowflake_schema.raw.fully_qualified_name
+  analyst_read = {
+    staging = snowflake_schema.staging.fully_qualified_name
+    marts   = snowflake_schema.marts.fully_qualified_name
+  }
+  dbt_targets = {
+    staging      = snowflake_schema.staging.fully_qualified_name
+    intermediate = snowflake_schema.intermediate.fully_qualified_name
+    marts        = snowflake_schema.marts.fully_qualified_name
+  }
 }
 
 resource "snowflake_account_role" "loader" {
@@ -148,7 +153,7 @@ resource "snowflake_grant_privileges_to_account_role" "dbt_raw_tables_future" {
 # dbt creates the objects in these schemas, so it owns them and needs no
 # per-table grants here.
 resource "snowflake_grant_privileges_to_account_role" "dbt_targets" {
-  for_each          = toset(local.dbt_targets)
+  for_each          = local.dbt_targets
   account_role_name = snowflake_account_role.dbt.name
   privileges        = ["USAGE", "CREATE TABLE", "CREATE VIEW", "MODIFY", "MONITOR"]
   on_schema {
@@ -160,7 +165,7 @@ resource "snowflake_grant_privileges_to_account_role" "dbt_targets" {
 # Staging models are views and marts are tables, so grant SELECT on both kinds.
 
 resource "snowflake_grant_privileges_to_account_role" "analyst_schemas" {
-  for_each          = toset(local.analyst_read)
+  for_each          = local.analyst_read
   account_role_name = snowflake_account_role.analyst.name
   privileges        = ["USAGE"]
   on_schema {
@@ -170,9 +175,10 @@ resource "snowflake_grant_privileges_to_account_role" "analyst_schemas" {
 
 locals {
   # Every (schema, object type) pair the analyst reads: 2 schemas x 2 types.
+  # Keys like "staging_views" come from the fixed words above, so plan knows them.
   analyst_select = {
-    for pair in setproduct(local.analyst_read, ["TABLES", "VIEWS"]) :
-    "${pair[0]}|${pair[1]}" => { schema = pair[0], type = pair[1] }
+    for pair in setproduct(keys(local.analyst_read), ["TABLES", "VIEWS"]) :
+    "${pair[0]}_${lower(pair[1])}" => { schema = local.analyst_read[pair[0]], type = pair[1] }
   }
 }
 
