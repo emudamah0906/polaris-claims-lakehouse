@@ -1,0 +1,4 @@
+# Copy to terraform.tfvars (gitignored).
+# `az account show --query id -o tsv` prints your subscription ID.
+
+subscription_id = ""
