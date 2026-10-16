@@ -260,7 +260,10 @@ def gen_claims(
 
         status = rng.choices(CLAIM_STATUSES, CLAIM_STATUS_WEIGHTS, k=1)[0]
         created = datetime.combine(report_date, time())
-        updated = created + timedelta(days=rng.randint(0, 60))
+        # Last touched up to 60 days after reporting, but never after as_of.
+        # A future updated_at would push an incremental extract's watermark
+        # past today, and it would silently skip tomorrow's real changes.
+        updated = min(created + timedelta(days=rng.randint(0, 60)), as_of)
 
         claims.append(
             Claim(
@@ -284,7 +287,7 @@ def gen_claims(
     return claims
 
 
-def gen_payments(rng: random.Random, claims: list[Claim]) -> list[ClaimPayment]:
+def gen_payments(rng: random.Random, claims: list[Claim], as_of: datetime) -> list[ClaimPayment]:
     payments: list[ClaimPayment] = []
     pay_id = 1
     for c in claims:
@@ -299,7 +302,8 @@ def gen_payments(rng: random.Random, claims: list[Claim]) -> list[ClaimPayment]:
             else:
                 amount = round(remaining * rng.uniform(0.3, 0.6), 2)
                 remaining -= amount
-            payment_date = c.report_date + timedelta(days=rng.randint(7, 120))
+            # 7 to 120 days after reporting, capped at as_of: no payments from the future
+            payment_date = min(c.report_date + timedelta(days=rng.randint(7, 120)), as_of.date())
             payments.append(
                 ClaimPayment(
                     payment_id=f"PAY_{pay_id:06d}",
@@ -412,7 +416,7 @@ def generate(ingest_date: date, day: int = 1, seed: int = 42) -> dict[str, list]
     customers = gen_customers(fake, rng, as_of)
     policies = gen_policies(fake, rng, customers, as_of)
     claims = gen_claims(fake, rng, policies, as_of)
-    payments = gen_payments(rng, claims)
+    payments = gen_payments(rng, claims, as_of)
 
     if day == 2:
         apply_day2_changes(rng, policies, claims, payments, datetime.combine(ingest_date, time()))

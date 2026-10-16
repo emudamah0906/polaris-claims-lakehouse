@@ -31,11 +31,30 @@ def test_different_seed_different_rows(day1):
     assert generate(D1, day=1, seed=7)["claims"] != day1["claims"]
 
 
-def test_no_dates_after_ingest_date(day1):
-    # Proves the clock is pinned: nothing can come from "today"
-    assert max(c.report_date for c in day1["claims"]) <= D1
-    assert max(c.loss_date for c in day1["claims"]) <= D1
-    assert max(p.created_at.date() for p in day1["policies"]) <= D1
+# Columns that record when something happened. None may be after the ingest
+# date. (Policy expiry_date is a contract end date, so it's allowed to be future.)
+EVENT_COLUMNS = {
+    "customers": ["created_at", "updated_at"],
+    "policies": ["effective_date", "created_at", "updated_at"],
+    "claims": ["loss_date", "report_date", "created_at", "updated_at"],
+    "claim_payments": ["payment_date", "created_at"],
+}
+
+
+def _latest(rows, column):
+    values = [getattr(r, column) for r in rows]
+    return max(v.date() if hasattr(v, "date") else v for v in values)
+
+
+@pytest.mark.parametrize("day", [1, 2])
+def test_no_event_after_ingest_date(day):
+    # Proves the clock is pinned, and that no row comes from the future.
+    # A future updated_at would break Stage 2b's watermark.
+    ingest = D1 + timedelta(days=day - 1)
+    tables = generate(ingest, day=day, seed=42)
+    for table, columns in EVENT_COLUMNS.items():
+        for column in columns:
+            assert _latest(tables[table], column) <= ingest, f"{table}.{column}"
 
 
 def test_day2_replays_day1_then_changes_it(day1):
