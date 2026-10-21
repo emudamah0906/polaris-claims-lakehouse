@@ -25,25 +25,21 @@ resources:
       parameters:
         - name: ingest_date
           default: "2026-10-19"
+      # Serverless jobs compute: Databricks runs the task on its own managed
+      # machines. The Azure Free Trial subscription can't start any VM size
+      # Databricks supports (only ARM and confidential sizes are allowed), so
+      # classic job clusters failed with CLOUD_PROVIDER_RESOURCE_STOCKOUT.
+      # Serverless also starts in seconds and bills only while the task runs.
+      environments:
+        - environment_key: default
+          spec:
+            client: "2"
       tasks:
         - task_key: silver_claims_system
+          environment_key: default
           spark_python_task:
             python_file: ./src/silver_job.py
             parameters: ["--ingest-date", "{{job.parameters.ingest_date}}"]
-          new_cluster:
-            # A job cluster: created for this run, deleted after it. Nothing
-            # runs (or bills) between days.
-            spark_version: 15.4.x-scala2.12          # LTS runtime
-            node_type_id: Standard_DS3_v2            # 4 cores: the subscription's whole vCPU quota
-            num_workers: 0                           # single node: driver does the work
-            spark_conf:
-              spark.databricks.cluster.profile: singleNode
-              spark.master: "local[*]"
-            custom_tags:
-              ResourceClass: SingleNode
-              project: polaris
-            data_security_mode: SINGLE_USER          # Unity Catalog access mode
-            single_user_name: ${workspace.current_user.userName}
       tags:
         project: polaris
         stage: "3"

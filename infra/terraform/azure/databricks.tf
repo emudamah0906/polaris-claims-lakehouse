@@ -51,6 +51,17 @@ resource "azurerm_role_assignment" "unity_silver_writer" {
   principal_type       = "ServicePrincipal"
 }
 
+# Unity Catalog hands Spark short-lived user-delegation SAS tokens, and minting
+# them is an account-level permission. Storage Blob Delegator grants only that;
+# what the tokens can reach is still capped by the two container roles above.
+# Without it: "Request for user delegation key is not authorized".
+resource "azurerm_role_assignment" "unity_delegator" {
+  scope                = azurerm_storage_account.lake.id
+  role_definition_name = "Storage Blob Delegator"
+  principal_id         = azurerm_databricks_access_connector.unity.identity[0].principal_id
+  principal_type       = "ServicePrincipal"
+}
+
 # ── Cost alarm ────────────────────────────────────────────────────────────────
 # Emails the subscription Owner at 40%, 80% and 100% of the monthly amount,
 # and when the forecast says the month will go over.
