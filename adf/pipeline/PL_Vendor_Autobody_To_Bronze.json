@@ -1,0 +1,124 @@
+{
+    "name": "PL_Vendor_Autobody_To_Bronze",
+    "properties": {
+        "description": "Stage 2c. Copies one day's body-shop repair estimates from landing to Bronze, then checks rows copied against the vendor's manifest. On a mismatch it deletes what it copied and fails the run, so Bronze never holds a short file.",
+        "parameters": {
+            "ingest_date": { "type": "string", "defaultValue": "2026-10-16" }
+        },
+        "activities": [
+            {
+                "name": "ReadManifest",
+                "description": "Read the vendor's control file. Lookup returns at most 5,000 rows, so it can't count the data file itself; the manifest carries the count.",
+                "type": "Lookup",
+                "policy": { "timeout": "0.00:05:00", "retry": 1, "retryIntervalInSeconds": 30 },
+                "typeProperties": {
+                    "source": {
+                        "type": "JsonSource",
+                        "storeSettings": { "type": "AzureBlobFSReadSettings", "recursive": false }
+                    },
+                    "dataset": {
+                        "referenceName": "DS_Landing_Manifest",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "folder": { "value": "@concat('autobody/', pipeline().parameters.ingest_date)", "type": "Expression" }
+                        }
+                    },
+                    "firstRowOnly": true
+                }
+            },
+            {
+                "name": "CopyToBronze",
+                "description": "Copy the CSV into the date-partitioned Bronze path. Runs only if the manifest was read.",
+                "type": "Copy",
+                "dependsOn": [ { "activity": "ReadManifest", "dependencyConditions": [ "Succeeded" ] } ],
+                "policy": { "timeout": "0.00:30:00", "retry": 2, "retryIntervalInSeconds": 60 },
+                "typeProperties": {
+                    "source": {
+                        "type": "DelimitedTextSource",
+                        "storeSettings": { "type": "AzureBlobFSReadSettings", "recursive": false },
+                        "formatSettings": { "type": "DelimitedTextReadSettings" },
+                        "additionalColumns": [
+                            { "name": "_source_file", "value": "$$FILEPATH" },
+                            { "name": "_ingest_date", "value": { "value": "@pipeline().parameters.ingest_date", "type": "Expression" } }
+                        ]
+                    },
+                    "sink": {
+                        "type": "DelimitedTextSink",
+                        "storeSettings": { "type": "AzureBlobFSWriteSettings" },
+                        "formatSettings": { "type": "DelimitedTextWriteSettings", "quoteAllText": true, "fileExtension": ".csv" }
+                    },
+                    "enableStaging": false
+                },
+                "inputs": [
+                    {
+                        "referenceName": "DS_Landing_Estimates",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "folder": { "value": "@concat('autobody/', pipeline().parameters.ingest_date)", "type": "Expression" }
+                        }
+                    }
+                ],
+                "outputs": [
+                    {
+                        "referenceName": "DS_Bronze_Estimates",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "folder": {
+                                "value": "@concat('vendor/autobody/repair_estimates/year=', formatDateTime(pipeline().parameters.ingest_date, 'yyyy'), '/month=', formatDateTime(pipeline().parameters.ingest_date, 'MM'), '/day=', formatDateTime(pipeline().parameters.ingest_date, 'dd'))",
+                                "type": "Expression"
+                            }
+                        }
+                    }
+                ]
+            },
+            {
+                "name": "RowCountMatches",
+                "description": "Reconcile: rows that landed in Bronze must equal what the vendor says it sent.",
+                "type": "IfCondition",
+                "dependsOn": [ { "activity": "CopyToBronze", "dependencyConditions": [ "Succeeded" ] } ],
+                "typeProperties": {
+                    "expression": {
+                        "value": "@equals(activity('CopyToBronze').output.rowsCopied, activity('ReadManifest').output.firstRow.row_count)",
+                        "type": "Expression"
+                    },
+                    "ifTrueActivities": [],
+                    "ifFalseActivities": [
+                        {
+                            "name": "DeleteBadBronzeFile",
+                            "description": "A file that failed the check must not stay in Bronze looking valid.",
+                            "type": "Delete",
+                            "typeProperties": {
+                                "dataset": {
+                                    "referenceName": "DS_Bronze_Estimates",
+                                    "type": "DatasetReference",
+                                    "parameters": {
+                                        "folder": {
+                                            "value": "@concat('vendor/autobody/repair_estimates/year=', formatDateTime(pipeline().parameters.ingest_date, 'yyyy'), '/month=', formatDateTime(pipeline().parameters.ingest_date, 'MM'), '/day=', formatDateTime(pipeline().parameters.ingest_date, 'dd'))",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                },
+                                "enableLogging": false,
+                                "storeSettings": { "type": "AzureBlobFSReadSettings", "recursive": false }
+                            }
+                        },
+                        {
+                            "name": "RowCountMismatch",
+                            "description": "Fail the run with a message that says exactly what didn't match.",
+                            "type": "Fail",
+                            "dependsOn": [ { "activity": "DeleteBadBronzeFile", "dependencyConditions": [ "Succeeded" ] } ],
+                            "typeProperties": {
+                                "message": {
+                                    "value": "@concat('Row count mismatch for ', pipeline().parameters.ingest_date, ': manifest says ', string(activity('ReadManifest').output.firstRow.row_count), ', copied ', string(activity('CopyToBronze').output.rowsCopied))",
+                                    "type": "Expression"
+                                },
+                                "errorCode": "ROW_COUNT_MISMATCH"
+                            }
+                        }
+                    ]
+                }
+            }
+        ],
+        "annotations": [ "polaris", "stage-2c" ]
+    }
+}

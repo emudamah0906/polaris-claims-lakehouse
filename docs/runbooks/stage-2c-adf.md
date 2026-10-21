@@ -1,9 +1,24 @@
-# Stage 2c: build the ADF pipeline in ADF Studio
+# Stage 2c: the ADF pipeline
 
 Terraform made the factory, the `landing` container and the factory's access
-(`infra/terraform/azure/data_factory.tf`). This runbook is the part you build
-by hand: one linked service, three datasets, one pipeline, a trigger. Then the
-JSON goes into git.
+(`infra/terraform/azure/data_factory.tf`). The pipeline is code too:
+
+```
+adf/linkedService/LS_ADLS_Polaris.json
+adf/dataset/DS_Landing_Manifest.json, DS_Landing_Estimates.json, DS_Bronze_Estimates.json
+adf/pipeline/PL_Vendor_Autobody_To_Bronze.json
+
+scripts/deploy_adf.sh             # PUT every JSON to the factory, in dependency order
+scripts/run_adf.sh 2026-10-16     # start a run, wait, print each activity
+```
+
+The folder layout is the one ADF's own Git integration writes. To change the
+pipeline: edit the JSON (or change it in Studio and copy the `{}` code view
+back into the file), run `deploy_adf.sh`, commit. Studio is for looking at
+the canvas and for Monitor.
+
+The sections below are the same pipeline built by hand in Studio, kept as a
+guide to what each piece is.
 
 **What the pipeline does**
 
@@ -167,6 +182,28 @@ Publish all.
 Export with the command in chat: it downloads the linked service, datasets,
 pipeline and trigger as JSON into `adf/`. The factory itself stays in
 Terraform; the pipeline definition is now code too.
+
+## What the first runs taught (20 Oct 2026)
+
+1. **`quoteAllText: false` is rejected at run time** ("cannot set to false for
+   Copy activity currently"), though the JSON schema allows it. Bronze CSVs
+   from ADF quote every value.
+2. **No `rowsCopied` on a plain CSV-to-CSV copy.** Same format on both sides
+   and no column changes, so ADF copied the file byte for byte
+   (`dataRead` = `dataWritten` = 3,739) and never counted rows. The If
+   Condition then failed on a missing property. An empty column mapping
+   didn't change that.
+3. **Fix: `additionalColumns`** (`_source_file`, `_ingest_date`). Adding
+   columns forces a row-by-row copy, so `rowsRead` / `rowsCopied` appear, and
+   every Bronze row now says where and when it came from.
+4. **Gap found:** when the If Condition itself errors (not evaluates to
+   false), the Delete branch never runs and the copied file stays in Bronze.
+   Candidate first ticket.
+
+| Run | Result |
+|---|---|
+| 16 Oct | manifest 51, copied 51, check passed. Bronze file: 52 lines (51 + header) |
+| 17 Oct, `--bad-manifest` | manifest 52, copied 51, `DeleteBadBronzeFile` ran, run **Failed**: *Row count mismatch for 2026-10-17: manifest says 52, copied 51*. Nothing left in Bronze for 17 Oct |
 
 ## Interview line
 

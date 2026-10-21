@@ -1,0 +1,23 @@
+{
+    "name": "DS_Landing_Manifest",
+    "properties": {
+        "description": "The vendor's control file: landing/<folder>/manifest.json, with row_count and sha256.",
+        "linkedServiceName": {
+            "referenceName": "LS_ADLS_Polaris",
+            "type": "LinkedServiceReference"
+        },
+        "parameters": {
+            "folder": { "type": "string" }
+        },
+        "type": "Json",
+        "typeProperties": {
+            "location": {
+                "type": "AzureBlobFSLocation",
+                "fileSystem": "landing",
+                "folderPath": { "value": "@dataset().folder", "type": "Expression" },
+                "fileName": "manifest.json"
+            }
+        },
+        "schema": {}
+    }
+}

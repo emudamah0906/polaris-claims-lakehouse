@@ -1,0 +1,10 @@
+{
+    "name": "LS_ADLS_Polaris",
+    "properties": {
+        "description": "ADLS Gen2 account. No credential here: ADF logs in as the factory's system-assigned managed identity, which has Reader on landing and Contributor on bronze (infra/terraform/azure/data_factory.tf).",
+        "type": "AzureBlobFS",
+        "typeProperties": {
+            "url": "https://polaris599i8o.dfs.core.windows.net"
+        }
+    }
+}

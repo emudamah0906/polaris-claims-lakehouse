@@ -9,7 +9,7 @@
 
 ## Build progress
 
-Built so far: 0, 1, 2, 2b, 5 and 6, so data runs end to end from the Python CLI to dbt marts in
+Built so far: 0, 1, 2, 2b, 2c, 5 and 6, so data runs end to end from the Python CLI to dbt marts in
 Snowflake. Stage 5 was moved ahead of 2b, 2c, 3 and 4 to get there first.
 
 The design is complete (8 ADRs). The build follows the seven-stage plan, plus
@@ -22,7 +22,7 @@ real infrastructure.
 | 1 | Foundation: Snowflake Terraform (database, schemas, warehouses, RBAC, credit cap), local Kafka stack, ADRs | Done: applied 15 Oct 2026, 39 resources, re-plan clean |
 | 2 | Bronze ingestion: Python CLI → ADLS (file-drop batch) | Done: landed in ADLS 20 Oct 2026, 4 tables + `_SUCCESS`, re-run byte-identical |
 | 2b | Incremental extract: Postgres claims system → Bronze with an `updated_at` watermark | Done: 20 Oct 2026, day 2 pulled only 0 / 385 / 149 / 100 changed rows, retry byte-identical. See [ingestion/README.md](ingestion/README.md) |
-| 2c | Azure Data Factory: landing → Bronze copy with a row-count check | Not started |
+| 2c | Azure Data Factory: landing → Bronze copy with a row-count check | Done: 20 Oct 2026, factory in Terraform, pipeline as JSON in `adf/`. 16 Oct copied 51 = manifest 51; 17 Oct bad manifest (52) deleted the copy and failed the run. See [docs/runbooks/stage-2c-adf.md](docs/runbooks/stage-2c-adf.md) |
 | 3 | Silver: PySpark SCD2 on Databricks | Not started |
 | 4 | Streaming: Kafka FNOL producer + Spark Structured Streaming | Not started (Kafka stack runs locally) |
 | 5 | Snowflake landing: COPY INTO from the ADLS external stage | Done: 20 Oct 2026, storage integration + external stage, RAW 3,000 / 5,000 / 10,000 / 11,203, re-run loads 0 files |

@@ -1,0 +1,27 @@
+{
+    "name": "DS_Bronze_Estimates",
+    "properties": {
+        "description": "Where the estimates land in Bronze: bronze/<folder>/part-00000.csv, same layout as the rest of Bronze.",
+        "linkedServiceName": {
+            "referenceName": "LS_ADLS_Polaris",
+            "type": "LinkedServiceReference"
+        },
+        "parameters": {
+            "folder": { "type": "string" }
+        },
+        "type": "DelimitedText",
+        "typeProperties": {
+            "location": {
+                "type": "AzureBlobFSLocation",
+                "fileSystem": "bronze",
+                "folderPath": { "value": "@dataset().folder", "type": "Expression" },
+                "fileName": "part-00000.csv"
+            },
+            "columnDelimiter": ",",
+            "escapeChar": "\\",
+            "quoteChar": "\"",
+            "firstRowAsHeader": true
+        },
+        "schema": []
+    }
+}
