@@ -73,10 +73,17 @@ class AdlsSink(Sink):
         self.fs = file_system_client
 
     def write(self, key: str, data: bytes) -> str:
-        # upload_data creates, appends and then flushes. The file only changes
-        # on the final flush, so readers see the old file or the new one,
-        # never half of one. Same guarantee LocalSink gets from its rename.
-        self.fs.get_file_client(key).upload_data(data, overwrite=True)
+        file = self.fs.get_file_client(key)
+        if not data:
+            # The SDK's upload_data returns early on 0 bytes and creates
+            # nothing, with no error. That silently dropped every _SUCCESS
+            # marker. create_file makes the empty file and replaces any old one.
+            file.create_file()
+        else:
+            # upload_data creates, appends and then flushes. The file only
+            # changes on the final flush, so readers see the old file or the
+            # new one, never half of one. Same guarantee as LocalSink's rename.
+            file.upload_data(data, overwrite=True)
         return f"abfss://{self.container}@{self.account}.dfs.core.windows.net/{key}"
 
     def delete(self, key: str) -> None:

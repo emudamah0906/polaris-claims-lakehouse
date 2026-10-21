@@ -108,7 +108,12 @@ class FakeFile:
 
     def upload_data(self, data, overwrite):
         assert overwrite is True  # a retry must replace, not fail on "exists"
+        if len(data) == 0:
+            return  # same as the real SDK: 0 bytes creates nothing
         self.store[self.key] = data
+
+    def create_file(self):
+        self.store[self.key] = b""
 
     def delete_file(self):
         if self.key not in self.store:
@@ -133,6 +138,13 @@ def test_adls_sink_write_delete():
     sink.delete("claims/x.csv")
     sink.delete("claims/x.csv")  # missing file is fine
     assert fs.store == {}
+
+
+def test_adls_sink_writes_empty_marker():
+    # Regression: the _SUCCESS marker is 0 bytes and never reached Azure
+    fs = FakeFileSystem()
+    AdlsSink("acct", "bronze", file_system_client=fs).write("_markers/x/_SUCCESS", b"")
+    assert fs.store == {"_markers/x/_SUCCESS": b""}
 
 
 def test_land_day_on_adls_matches_local(tmp_path):
