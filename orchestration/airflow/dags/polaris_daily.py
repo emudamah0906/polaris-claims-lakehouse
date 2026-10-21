@@ -1,5 +1,6 @@
 """polaris_daily: one business day through the whole platform.
 
+                                      ┌──► silver_databricks
     simulate_claims_app ──► extract_claims_system ──► load_claims_system ──┐
             │                                                              ├──► dbt_build
             └──► vendor_drop ──► adf_vendor_to_bronze ──► load_vendor ─────┘
@@ -10,6 +11,8 @@
   vendor_drop            the body-shop vendor drops its file + manifest in landing
                          (also stands in for the outside world)
   adf_vendor_to_bronze   ADF copies it to Bronze and checks the row count
+  silver_databricks      the extract into Silver Delta tables (SCD1, SCD2) on
+                         Databricks serverless, via the Asset Bundle job
   load_*                 COPY INTO Snowflake RAW, as the loader role
   dbt_build              staging + marts + 60-odd tests, as the dbt role
 
@@ -79,6 +82,16 @@ with DAG(
         depends_on_past=True,
     )
 
+    # Stage 3: the same day's extract into Silver Delta tables on Databricks
+    # (serverless). depends_on_past: SCD2 versions must be applied in order.
+    silver_databricks = BashOperator(
+        task_id="silver_databricks",
+        bash_command=PREFIX + "cd databricks && databricks bundle run polaris_silver -t prod "
+                              "--params ingest_date={{ ds }}",
+        env=ENV,
+        depends_on_past=True,
+    )
+
     load_claims_system = BashOperator(
         task_id="load_claims_system",
         bash_command=PREFIX + "scripts/sf.sh POLARIS_LOADER_ROLE POLARIS_WH_LOAD "
@@ -118,4 +131,5 @@ with DAG(
     )
 
     simulate_claims_app >> extract_claims_system >> load_claims_system >> dbt_build
+    extract_claims_system >> silver_databricks
     simulate_claims_app >> vendor_drop >> adf_vendor_to_bronze >> load_vendor >> dbt_build
