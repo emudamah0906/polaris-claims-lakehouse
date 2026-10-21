@@ -119,3 +119,7 @@ data/staged/
 data/bronze/
 data/landing/
 !data/.gitkeep
+
+# Stage 7: local Airflow state, logs and alert trail
+orchestration/airflow_home/
+orchestration/alerts.log

@@ -31,10 +31,14 @@ def marker_key(ingest_date: date) -> str:
     return f"_markers/ingest_date={ingest_date:%Y-%m-%d}/_SUCCESS"
 
 
-def rows_to_csv(rows: list) -> bytes:
-    """Dataclass rows to CSV bytes: header first, columns in field order."""
+def rows_to_csv(rows: list, header: list[str] | None = None) -> bytes:
+    """Dataclass rows to CSV bytes: header first, columns in field order.
+
+    With no rows, `header` (if given) still gets written, so an empty file
+    says what its columns are.
+    """
     if not rows:
-        return b""
+        return (",".join(header) + "\n").encode("utf-8") if header else b""
     buf = io.StringIO()
     writer = csv.writer(buf, lineterminator="\n")
     writer.writerow([f.name for f in fields(rows[0])])

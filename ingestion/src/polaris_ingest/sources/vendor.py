@@ -17,7 +17,7 @@ from __future__ import annotations
 import hashlib
 import json
 import random
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from datetime import date, timedelta
 
 from polaris_ingest.landing.bronze import rows_to_csv
@@ -74,14 +74,52 @@ def gen_estimates(ingest_date: date, seed: int = 42) -> list[RepairEstimate]:
     return estimates
 
 
-def drop(sink: Sink, ingest_date: date, seed: int = 42, bad_manifest: bool = False) -> dict:
+def estimates_from_postgres(conn, ingest_date: date, seed: int = 42) -> list[RepairEstimate]:
+    """Production feed (Stage 7): estimates for repairable auto claims the claims
+    system took in yesterday. Claim IDs are real rows in Postgres, so every
+    estimate joins to a claim downstream."""
+    yesterday = ingest_date - timedelta(days=1)
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT claim_id, report_date FROM claims_system.claims "
+            "WHERE product_type = 'AUTO' AND claim_type = ANY(%s) AND report_date = %s ORDER BY claim_id",
+            (list(REPAIRABLE), yesterday),
+        )
+        claims = cur.fetchall()
+    rng = random.Random(seed * 100_000 + ingest_date.toordinal())
+    estimates = []
+    for claim_id, _ in claims:
+        parts = round(rng.uniform(500, 8_000), 2)
+        labour = round(rng.uniform(300, 4_000), 2)
+        estimates.append(
+            RepairEstimate(
+                estimate_id=f"EST_{claim_id}",
+                claim_id=claim_id,
+                shop_id=f"SHOP_{rng.randint(1, N_SHOPS):03d}",
+                estimate_date=ingest_date,
+                parts_amount=parts,
+                labour_amount=labour,
+                total_amount=round(parts + labour, 2),
+                currency="CAD",
+            )
+        )
+    return estimates
+
+
+def drop(
+    sink: Sink, ingest_date: date, seed: int = 42, bad_manifest: bool = False,
+    rows: list[RepairEstimate] | None = None,
+) -> dict:
     """Write the CSV, then the manifest. Returns the manifest.
 
+    rows: the estimates to send; by default generated as in Stage 2c.
     bad_manifest=True claims one row more than was sent, to test that the ADF
     pipeline's row-count check fails the run.
     """
-    rows = gen_estimates(ingest_date, seed)
-    data = rows_to_csv(rows)
+    if rows is None:
+        rows = gen_estimates(ingest_date, seed)
+    # A quiet day still sends a file with its header, so ADF copies 0 rows, not nothing
+    data = rows_to_csv(rows, header=[f.name for f in fields(RepairEstimate)])
     folder = drop_folder(ingest_date)
     sink.write(f"{folder}/repair_estimates.csv", data)
     manifest = {

@@ -15,3 +15,5 @@ sources:
       - name: policies
       - name: claims
       - name: claim_payments
+      - name: repair_estimates
+        description: Body-shop vendor's daily estimates, copied into Bronze by ADF (Stage 2c).

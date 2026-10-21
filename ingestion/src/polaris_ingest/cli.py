@@ -52,12 +52,21 @@ def main(argv: list[str] | None = None) -> None:
     vendor.add_argument("--seed", type=int, default=42)
     vendor.add_argument("--bad-manifest", action="store_true",
                         help="Claim one row more than sent, to test ADF's row-count check")
+    vendor.add_argument("--source", choices=["generated", "postgres"], default="generated",
+                        help="postgres = estimates for claims the claims system took in yesterday")
+    vendor.add_argument("--dsn", help=dsn_help)
     _add_sink_args(vendor)
     # The vendor drops into landing; ADF is what moves it to Bronze
     vendor.set_defaults(root="data/landing", container="landing")
 
+    sim = sub.add_parser("simulate-day", help="One business day in the claims system (Stage 7)")
+    sim.add_argument("--date", type=date.fromisoformat, required=True)
+    sim.add_argument("--seed", type=int, default=42)
+    sim.add_argument("--dsn", help=dsn_help)
+
     args = parser.parse_args(argv)
-    commands = {"run": _run, "pg-load": _pg_load, "extract": _extract, "vendor-drop": _vendor}
+    commands = {"run": _run, "pg-load": _pg_load, "extract": _extract, "vendor-drop": _vendor,
+                "simulate-day": _simulate}
     commands[args.command](args)
 
 
@@ -123,14 +132,45 @@ def _extract(args) -> None:
 
 
 def _vendor(args) -> None:
+    from polaris_ingest import chaos
     from polaris_ingest.sources import vendor
 
-    sink = make_sink(args.backend, args.root, args.account, args.container)
-    manifest = vendor.drop(sink, args.ingest_date, args.seed, args.bad_manifest)
-    folder = vendor.drop_folder(args.ingest_date)
+    planned = chaos.incidents(args.ingest_date)
     print(f"[polaris-ingest vendor-drop] ingest_date={args.ingest_date} container={args.container}")
+    if "vendor_late" in planned:
+        print("  nothing dropped: the vendor's file hasn't arrived")
+        return
+
+    sink = make_sink(args.backend, args.root, args.account, args.container)
+    rows = None
+    if args.source == "postgres":
+        from polaris_ingest.sources import postgres
+
+        with postgres.connect(args.dsn) as conn:
+            rows = vendor.estimates_from_postgres(conn, args.ingest_date, args.seed)
+    bad = args.bad_manifest or "vendor_bad_manifest" in planned
+    manifest = vendor.drop(sink, args.ingest_date, args.seed, bad, rows=rows)
+    folder = vendor.drop_folder(args.ingest_date)
     print(f"  {folder}/repair_estimates.csv   {manifest['row_count']:,} rows in manifest"
           + ("  (BAD: one more than sent)" if args.bad_manifest else ""))
+
+
+def _simulate(args) -> None:
+    from polaris_ingest import chaos
+    from polaris_ingest.sources import postgres, simulate
+
+    with postgres.connect(args.dsn) as conn:
+        counts = simulate.simulate_day(conn, args.date, args.seed)
+        if counts:
+            # Silent on purpose: production doesn't announce its incidents
+            chaos.apply_claims_app_incidents(conn, args.date)
+
+    print(f"[polaris-ingest simulate-day] date={args.date}")
+    if not counts:
+        print("  already applied, nothing changed")
+        return
+    for name, n in counts.items():
+        print(f"  {name:<10} {n:>4}")
     print(f"  {folder}/manifest.json         sha256 {manifest['sha256'][:12]}...")
 
 

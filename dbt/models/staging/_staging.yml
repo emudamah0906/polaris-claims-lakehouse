@@ -89,3 +89,22 @@ models:
         data_tests: [not_null]
       - name: payment_amount
         data_tests: [not_null]
+
+  - name: stg_repair_estimates
+    description: One row per vendor repair estimate, typed.
+    data_tests:
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "total_amount = parts_amount + labour_amount"
+    columns:
+      - name: estimate_id
+        data_tests: [unique, not_null]
+      - name: claim_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_claims')
+                field: claim_id
+      - name: total_amount
+        data_tests: [not_null]
