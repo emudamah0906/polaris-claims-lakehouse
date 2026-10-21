@@ -10,6 +10,11 @@ output "bronze_url" {
   value       = "abfss://bronze@${azurerm_storage_account.lake.name}.dfs.core.windows.net/"
 }
 
+output "data_factory_name" {
+  description = "Stage 2c: open it in ADF Studio from the portal, or adf.azure.com."
+  value       = azurerm_data_factory.polaris.name
+}
+
 output "containers" {
   description = "One container per medallion layer."
   value       = sort([for c in azurerm_storage_container.layer : c.name])

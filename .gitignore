@@ -117,4 +117,5 @@ Thumbs.db
 data/raw/
 data/staged/
 data/bronze/
+data/landing/
 !data/.gitkeep

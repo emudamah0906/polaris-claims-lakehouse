@@ -47,8 +47,18 @@ def main(argv: list[str] | None = None) -> None:
     extract.add_argument("--dsn", help=dsn_help)
     _add_sink_args(extract)
 
+    vendor = sub.add_parser("vendor-drop", help="Drop the body-shop vendor file + manifest (2c)")
+    vendor.add_argument("--ingest-date", type=date.fromisoformat, required=True)
+    vendor.add_argument("--seed", type=int, default=42)
+    vendor.add_argument("--bad-manifest", action="store_true",
+                        help="Claim one row more than sent, to test ADF's row-count check")
+    _add_sink_args(vendor)
+    # The vendor drops into landing; ADF is what moves it to Bronze
+    vendor.set_defaults(root="data/landing", container="landing")
+
     args = parser.parse_args(argv)
-    {"run": _run, "pg-load": _pg_load, "extract": _extract}[args.command](args)
+    commands = {"run": _run, "pg-load": _pg_load, "extract": _extract, "vendor-drop": _vendor}
+    commands[args.command](args)
 
 
 def _add_day_args(p: argparse.ArgumentParser) -> None:
@@ -110,6 +120,18 @@ def _extract(args) -> None:
     for table, r in report.items():
         print(f"  {table:<15} {r['rows']:>6,} rows  ({r['after']} , {r['up_to']}]"
               f"  ->  {extract_key(table, args.ingest_date)}")
+
+
+def _vendor(args) -> None:
+    from polaris_ingest.sources import vendor
+
+    sink = make_sink(args.backend, args.root, args.account, args.container)
+    manifest = vendor.drop(sink, args.ingest_date, args.seed, args.bad_manifest)
+    folder = vendor.drop_folder(args.ingest_date)
+    print(f"[polaris-ingest vendor-drop] ingest_date={args.ingest_date} container={args.container}")
+    print(f"  {folder}/repair_estimates.csv   {manifest['row_count']:,} rows in manifest"
+          + ("  (BAD: one more than sent)" if args.bad_manifest else ""))
+    print(f"  {folder}/manifest.json         sha256 {manifest['sha256'][:12]}...")
 
 
 if __name__ == "__main__":
