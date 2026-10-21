@@ -73,6 +73,58 @@ creates that first user, once. Everything after that is code.
    terraform apply tfplan
    ```
 
+## Stage 5: reading the ADLS bronze container
+
+`landing.tf` adds the link from Snowflake to Azure. No storage key or SAS
+token exists anywhere: Snowflake gets its own identity in your Azure tenant,
+and Azure gives that identity read access to one container.
+
+```
+STORAGE INTEGRATION  POLARIS_ADLS_BRONZE   allowed: azure://<account>.blob.core.windows.net/bronze/
+FILE FORMAT          POLARIS.RAW.BRONZE_CSV   header row, comma, optional quotes
+STAGE                POLARIS.RAW.BRONZE_ADLS  points at the bronze container
+GRANT                USAGE on the stage and the file format to POLARIS_LOADER_ROLE
+```
+
+It's a handshake across two clouds, so the order matters. One step at a
+time, checking each result:
+
+1. **Two values into `terraform.tfvars`** (see the example file):
+   `azure_tenant_id` from `az account show --query tenantId -o tsv`, and
+   `adls_account = "polaris599i8o"`.
+2. **Snowflake plan and apply.** `terraform plan -out tfplan` should show
+   **5 to add, 0 to change, 0 to destroy** (integration, file format, stage,
+   2 grants). Then `terraform apply tfplan`.
+3. **Consent, in a browser.** `terraform output -raw azure_consent_url`, open
+   it, sign in as the subscription owner, Accept. This registers Snowflake's
+   app in your tenant. It grants nothing yet.
+4. **Azure side** (`infra/terraform/azure`). Put
+   `snowflake_app_name = "<terraform output -raw azure_multi_tenant_app_name>"`
+   in its `terraform.tfvars`, then `terraform init` (new azuread provider),
+   `terraform plan -out tfplan`: **1 to add** (Storage Blob Data Reader on the
+   bronze container), then apply.
+5. **Wait two minutes.** Azure role assignments take a moment to apply.
+6. **Load.** `ingestion/snowflake/load_raw.sql` in Snowsight, one section at a
+   time. It lists the stage, checks `_SUCCESS`, creates the RAW tables and
+   runs COPY INTO.
+7. **Re-plan both stacks.** Both should show no changes.
+
+Why it's built this way:
+
+- **Integration, not a key.** A SAS token in a stage definition works, but
+  it's a long-lived secret that nobody rotates. To cut off a storage
+  integration, you remove one role assignment in Azure.
+- **Reader, not Contributor, and only on bronze.** Snowflake only reads
+  files. With write access it could delete the one copy of Bronze.
+- **`storage_allowed_locations`** is a whitelist on the Snowflake side. A
+  stage written later can't point this integration anywhere else.
+- **COPY INTO isn't in Terraform.** Terraform manages objects that should
+  exist. Loading data is a pipeline step that runs every day, so it lives in
+  SQL now and moves to Airflow in Stage 7.
+- **Preview features.** In provider v1, storage integration, stage and file
+  format are "preview" resources that can change in a minor release, so
+  `versions.tf` switches each one on by name.
+
 ## State
 
 State is local (`terraform.tfstate`, gitignored) for now. The `backend
@@ -104,3 +156,13 @@ Azure side exists, which is what CI needs before it can apply safely.
 - [x] `terraform apply` finished clean
 - [x] `SHOW GRANTS TO ROLE POLARIS_ANALYST_ROLE;` shows only USAGE (4 rows; SELECT rows appear once dbt creates tables)
 - [x] Second `terraform plan` shows no changes
+
+Stage 5:
+
+- [ ] Snowflake plan showed 5 to add, applied clean
+- [ ] Consent URL accepted
+- [ ] Azure plan showed 1 to add, applied clean
+- [ ] `LIST @BRONZE_ADLS` shows the four CSVs and `_SUCCESS`
+- [ ] RAW counts 3,000 / 5,000 / 10,000 / 11,203
+- [ ] Second COPY INTO loads 0 files and counts stay the same
+- [ ] Both stacks re-plan clean

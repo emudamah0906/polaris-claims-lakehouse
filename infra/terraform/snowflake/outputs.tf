@@ -32,6 +32,23 @@ output "roles" {
   }
 }
 
+# ── Stage 5: the two values for the Azure half of the handshake ──────────────
+
+output "azure_consent_url" {
+  description = "Open in a browser, sign in as the subscription owner, Accept. Registers Snowflake's app in your tenant."
+  value       = snowflake_storage_integration.adls_bronze.azure_consent_url
+}
+
+output "azure_multi_tenant_app_name" {
+  description = "Paste into snowflake_app_name in infra/terraform/azure/terraform.tfvars."
+  value       = snowflake_storage_integration.adls_bronze.azure_multi_tenant_app_name
+}
+
+output "bronze_stage" {
+  description = "External stage the loader runs COPY INTO from."
+  value       = snowflake_stage.bronze.fully_qualified_name
+}
+
 output "resource_monitor" {
   description = "Monthly credit cap on both warehouses."
   value = {

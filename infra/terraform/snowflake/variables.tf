@@ -38,6 +38,16 @@ variable "warehouse_load" {
   default     = "POLARIS_WH_LOAD"
 }
 
+variable "azure_tenant_id" {
+  description = "Azure AD tenant that owns the storage account. `az account show --query tenantId -o tsv` prints it."
+  type        = string
+}
+
+variable "adls_account" {
+  description = "ADLS Gen2 storage account with the bronze container. `terraform output storage_account_name` in infra/terraform/azure."
+  type        = string
+}
+
 variable "monthly_credit_quota" {
   description = "Credits per month before both warehouses are suspended."
   type        = number

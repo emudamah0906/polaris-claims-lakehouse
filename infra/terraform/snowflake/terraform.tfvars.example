@@ -5,3 +5,7 @@ snowflake_organization     = ""
 snowflake_account          = ""
 snowflake_user             = "TERRAFORM_SVC"
 snowflake_private_key_path = "~/.snowflake/terraform_svc_rsa.p8"
+
+# Stage 5
+azure_tenant_id = ""              # az account show --query tenantId -o tsv
+adls_account    = ""              # terraform output storage_account_name (azure stack)
