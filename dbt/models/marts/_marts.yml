@@ -1,0 +1,74 @@
+version: 2
+
+models:
+  - name: dim_customer
+    description: One row per customer, no direct PII, with policy counts.
+    columns:
+      - name: customer_id
+        data_tests: [unique, not_null]
+
+  - name: dim_policy
+    description: One row per policy, current version.
+    columns:
+      - name: policy_id
+        data_tests: [unique, not_null]
+      - name: customer_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_customer')
+                field: customer_id
+
+  - name: fct_claims
+    description: One row per claim, with payments to date, report lag and the late-FNOL flag.
+    data_tests:
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "report_date >= loss_date"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "total_paid >= 0 and claim_amount >= 0"
+    columns:
+      - name: claim_id
+        data_tests: [unique, not_null]
+      - name: policy_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_policy')
+                field: policy_id
+
+  - name: fct_claim_payments
+    description: One row per payment, with the claim's product and type.
+    data_tests:
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "payment_amount > 0"
+    columns:
+      - name: payment_id
+        data_tests: [unique, not_null]
+      - name: claim_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('fct_claims')
+                field: claim_id
+
+  - name: finance_claims_paid_monthly
+    description: Claims paid per month and product, split by payment type.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [payment_month, product_type]
+
+  - name: fraud_claim_signals
+    description: Claims with at least one fraud signal, for the SIU queue.
+    columns:
+      - name: claim_id
+        data_tests: [unique, not_null]
+      - name: signal_count
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3]
+                quote: false

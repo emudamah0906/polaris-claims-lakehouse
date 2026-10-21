@@ -1,0 +1,17 @@
+version: 2
+
+sources:
+  - name: raw
+    description: Bronze in Snowflake. Loaded by COPY INTO from ADLS (Stage 5), every column VARCHAR.
+    database: POLARIS
+    schema: RAW
+    config:
+      loaded_at_field: _loaded_at
+      freshness:
+        warn_after: {count: 2, period: day}
+    tables:
+      - name: customers
+        description: One row per customer per file. Holds PII (SIN, date of birth, contact details).
+      - name: policies
+      - name: claims
+      - name: claim_payments
