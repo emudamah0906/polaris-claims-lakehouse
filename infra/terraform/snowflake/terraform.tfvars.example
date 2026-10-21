@@ -1,0 +1,7 @@
+# Copy to terraform.tfvars (gitignored) and fill in your account details.
+# Find both names in Snowsight: Admin > Accounts.
+
+snowflake_organization     = ""
+snowflake_account          = ""
+snowflake_user             = "TERRAFORM_SVC"
+snowflake_private_key_path = "~/.snowflake/terraform_svc_rsa.p8"

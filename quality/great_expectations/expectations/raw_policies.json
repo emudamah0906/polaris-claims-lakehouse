@@ -1,0 +1,46 @@
+{
+  "data_asset_type": null,
+  "expectation_suite_name": "raw_policies",
+  "expectations": [
+    {
+      "expectation_type": "expect_table_row_count_to_be_between",
+      "kwargs": {"min_value": 5000, "max_value": 10000000}
+    },
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": {"column": "POLICY_NUMBER"}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_unique",
+      "kwargs": {"column": "POLICY_NUMBER"}
+    },
+    {
+      "expectation_type": "expect_column_values_to_match_regex",
+      "kwargs": {"column": "POLICY_NUMBER", "regex": "^POL-\\d{4}-\\d{6}$"}
+    },
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": {"column": "CUSTOMER_ID"}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "PRODUCT_TYPE",
+        "value_set": ["Auto", "Home", "Life", "Health", "Commercial"]
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "POLICY_STATUS",
+        "value_set": ["Active", "Expired", "Cancelled", "Lapsed", "Pending"]
+      }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_between",
+      "kwargs": {"column": "PREMIUM_ANNUAL", "min_value": 0, "max_value": 1000000}
+    }
+  ],
+  "ge_cloud_id": null,
+  "meta": {"great_expectations_version": "0.18.19"}
+}

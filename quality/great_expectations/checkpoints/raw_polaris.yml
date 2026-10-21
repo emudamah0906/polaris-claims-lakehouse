@@ -1,0 +1,47 @@
+name: raw_polaris
+config_version: 1.0
+template_name: null
+module_name: great_expectations.checkpoint
+class_name: Checkpoint
+run_name_template: "%Y%m%d-%H%M%S-raw_polaris"
+
+# Runs three suites against POLARIS.RAW.* in one invocation. Any suite failing
+# triggers a non-zero exit code → Airflow task fails → DAG branch halts.
+
+validations:
+  - batch_request:
+      datasource_name: snowflake_polaris
+      data_connector_name: default_inferred
+      data_asset_name: RAW.RAW_CUSTOMERS
+    expectation_suite_name: raw_customers
+
+  - batch_request:
+      datasource_name: snowflake_polaris
+      data_connector_name: default_inferred
+      data_asset_name: RAW.RAW_POLICIES
+    expectation_suite_name: raw_policies
+
+  - batch_request:
+      datasource_name: snowflake_polaris
+      data_connector_name: default_inferred
+      data_asset_name: RAW.RAW_CLAIMS
+    expectation_suite_name: raw_claims
+
+action_list:
+  - name: store_validation_result
+    action:
+      class_name: StoreValidationResultAction
+  - name: store_evaluation_params
+    action:
+      class_name: StoreEvaluationParametersAction
+  - name: update_data_docs
+    action:
+      class_name: UpdateDataDocsAction
+      site_names: [local_site]
+
+# Hard-stop on failure — GE returns non-zero, BashOperator fails, DAG halts.
+# Comment out if you'd rather warn-and-continue during early dev.
+runtime_configuration:
+  result_format:
+    result_format: SUMMARY
+    include_unexpected_rows: false
