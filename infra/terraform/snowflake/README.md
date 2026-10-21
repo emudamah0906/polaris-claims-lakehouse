@@ -157,12 +157,15 @@ Azure side exists, which is what CI needs before it can apply safely.
 - [x] `SHOW GRANTS TO ROLE POLARIS_ANALYST_ROLE;` shows only USAGE (4 rows; SELECT rows appear once dbt creates tables)
 - [x] Second `terraform plan` shows no changes
 
-Stage 5:
+Stage 5 (20 Oct 2026):
 
-- [ ] Snowflake plan showed 5 to add, applied clean
-- [ ] Consent URL accepted
-- [ ] Azure plan showed 1 to add, applied clean
-- [ ] `LIST @BRONZE_ADLS` shows the four CSVs and `_SUCCESS`
-- [ ] RAW counts 3,000 / 5,000 / 10,000 / 11,203
-- [ ] Second COPY INTO loads 0 files and counts stay the same
-- [ ] Both stacks re-plan clean
+- [x] Snowflake plan showed 5 to add, applied clean
+- [x] Consent URL accepted; `SnowflakePACInt1363` exists in the tenant
+- [x] Azure plan showed 1 to add, applied clean
+- [x] `LIST @BRONZE_ADLS` shows the four CSVs and `_SUCCESS` (first try gave a
+      403: the role assignment was minutes old. Fine on retry)
+- [x] RAW counts 3,000 / 5,000 / 10,000 / 11,203, 0 errors
+- [x] Second COPY INTO loads 0 files and counts stay the same
+- [x] Both stacks re-plan clean
+- [x] `POLARIS_SVC` service user (users.tf, 3 added): key pair only, holds the
+      loader and dbt roles. The load ran as POLARIS_SVC / POLARIS_LOADER_ROLE

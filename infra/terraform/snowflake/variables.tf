@@ -48,6 +48,12 @@ variable "adls_account" {
   type        = string
 }
 
+variable "polaris_svc_public_key_path" {
+  description = "Public key for POLARIS_SVC. The private half stays in ~/.snowflake, outside the repo."
+  type        = string
+  default     = "~/.snowflake/polaris_svc_rsa.pub"
+}
+
 variable "monthly_credit_quota" {
   description = "Credits per month before both warehouses are suspended."
   type        = number
