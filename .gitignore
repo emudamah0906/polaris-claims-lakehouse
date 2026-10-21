@@ -21,6 +21,11 @@ wheels/
 *.egg
 MANIFEST
 .venv/
+# .venv is a symlink to .venv.nosync so iCloud Desktop sync skips it.
+# Under iCloud, files inside a dot-folder get the macOS hidden flag, and
+# Python 3.13+ ignores hidden .pth files, which breaks editable installs.
+.venv
+.venv.nosync/
 venv/
 ENV/
 env/
@@ -111,4 +116,5 @@ Thumbs.db
 # ── Generated data (reproducible via scripts/generate_polaris_data.py) ────
 data/raw/
 data/staged/
+data/bronze/
 !data/.gitkeep

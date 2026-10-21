@@ -21,8 +21,8 @@ logs: ## Tail local stack logs
 seed: ## Seed Bronze with Synthea + Kaggle samples
 	./scripts/seed_data.sh
 
-ingest: ## Run a one-off Bronze ingest cycle
-	uv run polaris-ingest run --source synthea
+ingest: ## Land one day in local Bronze (DATE=YYYY-MM-DD, default today; DAY=1|2)
+	uv run polaris-ingest run --ingest-date $(or $(DATE),$(shell date +%F)) --day $(or $(DAY),1)
 
 stream: ## Start the FNOL Kafka producer (Ctrl-C to stop)
 	uv run python streaming/fnol_producer/src/main.py --rate 10
