@@ -23,5 +23,7 @@ export AIRFLOW__CORE__ALLOW_TRIGGER_IN_FUTURE=True
 # macOS: forked task processes crash in some network libraries without these
 export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
 export no_proxy='*'
+# `standalone` starts the scheduler and webserver as `airflow ...` subprocesses
+export PATH="$HERE/.venv/bin:$PATH"
 
 exec "$HERE/.venv/bin/airflow" "$@"
