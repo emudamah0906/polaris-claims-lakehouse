@@ -1,0 +1,49 @@
+# Databricks Asset Bundle: the Silver job as code (Stage 3).
+#
+#   cd databricks
+#   databricks bundle validate -t prod
+#   databricks bundle deploy -t prod                      # uploads src/, creates/updates the job
+#   databricks bundle run polaris_silver -t prod --params ingest_date=2026-10-19
+#
+# Logs in with your `az login` (profile "polaris" in ~/.databrickscfg).
+bundle:
+  name: polaris
+
+targets:
+  prod:
+    default: true
+    workspace:
+      host: https://adb-7405611377325778.18.azuredatabricks.net
+      profile: polaris
+
+resources:
+  jobs:
+    polaris_silver:
+      name: polaris_silver
+      description: Bronze claims-system extract for one business day -> Silver Delta tables (SCD1, SCD2), with quarantine and audit.
+      max_concurrent_runs: 1   # days must apply in order, like the extract's watermark
+      parameters:
+        - name: ingest_date
+          default: "2026-10-19"
+      tasks:
+        - task_key: silver_claims_system
+          spark_python_task:
+            python_file: ./src/silver_job.py
+            parameters: ["--ingest-date", "{{job.parameters.ingest_date}}"]
+          new_cluster:
+            # A job cluster: created for this run, deleted after it. Nothing
+            # runs (or bills) between days.
+            spark_version: 15.4.x-scala2.12          # LTS runtime
+            node_type_id: Standard_DS3_v2            # 4 cores: the subscription's whole vCPU quota
+            num_workers: 0                           # single node: driver does the work
+            spark_conf:
+              spark.databricks.cluster.profile: singleNode
+              spark.master: "local[*]"
+            custom_tags:
+              ResourceClass: SingleNode
+              project: polaris
+            data_security_mode: SINGLE_USER          # Unity Catalog access mode
+            single_user_name: ${workspace.current_user.userName}
+      tags:
+        project: polaris
+        stage: "3"

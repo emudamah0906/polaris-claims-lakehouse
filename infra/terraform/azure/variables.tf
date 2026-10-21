@@ -15,6 +15,12 @@ variable "snowflake_app_name" {
   default     = ""
 }
 
+variable "monthly_budget" {
+  description = "Stage 3: monthly cost alarm for the whole subscription, in the billing currency."
+  type        = number
+  default     = 25
+}
+
 variable "resource_group_name" {
   description = "Resource group holding everything Polaris creates in Azure."
   type        = string

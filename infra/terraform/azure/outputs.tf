@@ -15,6 +15,16 @@ output "data_factory_name" {
   value       = azurerm_data_factory.polaris.name
 }
 
+output "databricks_workspace_url" {
+  description = "Stage 3: open this to reach the Databricks workspace."
+  value       = "https://${azurerm_databricks_workspace.polaris.workspace_url}"
+}
+
+output "databricks_access_connector_id" {
+  description = "Stage 3: Unity Catalog's storage credential uses this identity."
+  value       = azurerm_databricks_access_connector.unity.id
+}
+
 output "containers" {
   description = "One container per medallion layer."
   value       = sort([for c in azurerm_storage_container.layer : c.name])
