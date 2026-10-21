@@ -1,132 +1,136 @@
-# Polaris — A Property & Casualty Insurance Claims Lakehouse
+# Polaris: an insurance claims data platform on Azure, Databricks and Snowflake
 
-> **Scope:** part built, part design. Running today on real Azure and Snowflake (20 Oct 2026):
-> Python ingest → ADLS Bronze → Snowflake RAW (storage integration + COPY INTO) → dbt staging
-> and marts, all provisioned with Terraform, 60 dbt tests passing. Databricks Silver, Kafka
-> streaming, ADF, Postgres CDC and Airflow are designed (ADRs) but not built. See the table.
+Polaris takes data from a car and home insurer's systems (customers, policies, claims, claim
+payments and body-shop repair estimates), lands it in a data lake, cleans it, and builds tables
+the claims, finance and fraud teams can report from.
 
-> Production-grade P&C insurance claims lakehouse on Azure + Snowflake. Medallion (Bronze/Silver/Gold) with PySpark on Databricks and dbt; real-time FNOL fraud streaming via Kafka + Structured Streaming; orchestrated by Airflow; Terraform IaC; Azure Key Vault + GitHub OIDC; Great Expectations, OpenLineage, and an ADR for every key trade-off.
+It runs on real cloud accounts (Azure, Azure Databricks, Snowflake), not just on a laptop. Every
+stage is built and tested on its own branch and pull request. A stage is only marked done after
+it has run against real infrastructure.
 
-## Build progress
+**Honest scope:** ingestion through to the reporting tables is built and runs every day under
+Airflow. Kafka streaming, CI/CD, Great Expectations checks, lineage and dashboards are designed
+but not built yet. The table below shows exactly where each part stands.
 
-Built so far: 0, 1, 2, 2b, 2c, 3, 5, 6 and most of 7, so data runs end to end from the Python CLI to dbt marts in
-Snowflake. Stage 5 was moved ahead of 2b, 2c, 3 and 4 to get there first.
+## How one day of data flows
 
-The design is complete (8 ADRs). The build follows the seven-stage plan, plus
-2b and 2c to cover more ingestion patterns, one stage per pull request. A stage is marked done only after it has run against
-real infrastructure.
+```
+Postgres (claims system) ──Python extract, changed rows only──┐
+                                                               ├─> ADLS Bronze ─> Snowflake RAW ─> dbt marts
+Vendor CSV drop (landing) ──ADF copy + row-count check────────┘        │          (COPY INTO)       (claims,
+                                                                        │                            finance,
+                                                                        └─> Databricks Silver         fraud)
+                                                                            (history of policy changes)
 
-| Stage | What | Status |
+Airflow runs the whole day in order and opens a GitHub issue when a step fails.
+```
+
+- **Bronze** = the raw files exactly as they arrived, kept by date.
+- **Silver** = cleaned data, with a full history of every policy change (SCD Type 2).
+- **Marts** = final tables for reporting, built and tested with dbt in Snowflake.
+
+## What is built
+
+| Stage | What it does | Status |
 |---|---|---|
-| 0 | Repo hygiene: rescued GE suites, Makefile and README fixes | Done |
-| 1 | Foundation: Snowflake Terraform (database, schemas, warehouses, RBAC, credit cap), local Kafka stack, ADRs | Done: applied 15 Oct 2026, 39 resources, re-plan clean |
-| 2 | Bronze ingestion: Python CLI → ADLS (file-drop batch) | Done: landed in ADLS 20 Oct 2026, 4 tables + `_SUCCESS`, re-run byte-identical |
-| 2b | Incremental extract: Postgres claims system → Bronze with an `updated_at` watermark | Done: 20 Oct 2026, day 2 pulled only 0 / 385 / 149 / 100 changed rows, retry byte-identical. See [ingestion/README.md](ingestion/README.md) |
-| 2c | Azure Data Factory: landing → Bronze copy with a row-count check | Done: 20 Oct 2026, factory in Terraform, pipeline as JSON in `adf/`. 16 Oct copied 51 = manifest 51; 17 Oct bad manifest (52) deleted the copy and failed the run. See [docs/runbooks/stage-2c-adf.md](docs/runbooks/stage-2c-adf.md) |
-| 3 | Silver: PySpark SCD2 on Databricks | Done: 21 Oct 2026, Azure Databricks (Premium, Unity Catalog, serverless jobs) via Terraform + Asset Bundle. 10 business days loaded; policies SCD2 in one MERGE; rerun changes 0 rows; schema drift flagged on 27-28 Oct. See [databricks/](databricks/) |
-| 4 | Streaming: Kafka FNOL producer + Spark Structured Streaming | Not started (Kafka stack runs locally) |
-| 5 | Snowflake landing: COPY INTO from the ADLS external stage | Done: 20 Oct 2026, storage integration + external stage, RAW 3,000 / 5,000 / 10,000 / 11,203, re-run loads 0 files |
-| 6 | dbt staging + marts (claims, finance, fraud) | Done: 20 Oct 2026, `dbt build` PASS=60, reconciliation RAW → marts to the cent. See [dbt/README.md](dbt/README.md). Actuarial mart waits on a generator fix |
-| 7 | Orchestration, data quality, lineage, BI | In progress: Airflow DAG `polaris_daily` (8 tasks) ran business days 19-28 Oct with failure tickets on GitHub Issues. Lineage, Great Expectations and BI not built |
+| 0 | Clean up the repo: Makefile, README, saved data-quality suites | Done |
+| 1 | Snowflake set up with Terraform: database, schemas, warehouses, three roles, a credit limit | Done 15 Oct 2026 (39 resources) |
+| 2 | Python tool that lands each day's files in ADLS Bronze | Done 20 Oct 2026. Re-running a day gives byte-identical files |
+| 2b | Pull only changed rows from Postgres, using an `updated_at` watermark | Done 20 Oct 2026. Day 2 pulled 0 / 385 / 149 / 100 changed rows, not full tables. See [ingestion/README.md](ingestion/README.md) |
+| 2c | Azure Data Factory copies the vendor file to Bronze and checks the row count | Done 20 Oct 2026. Good day: 51 rows copied = 51 in the manifest. Bad manifest (52): the copy was deleted and the run failed on purpose. See [docs/runbooks/stage-2c-adf.md](docs/runbooks/stage-2c-adf.md) |
+| 3 | Silver on Azure Databricks: PySpark, Unity Catalog, policy history in one MERGE | Done 21 Oct 2026. Re-running a day changes 0 rows. A source column change was caught and logged. See [databricks/](databricks/) |
+| 4 | Streaming: new claims (FNOL) through Kafka into Spark Structured Streaming | Not started. The local Kafka stack runs |
+| 5 | Snowflake reads Bronze from ADLS (storage integration, external stage, COPY INTO) | Done 20 Oct 2026. RAW 3,000 / 5,000 / 10,000 / 11,203 rows; re-running loads 0 files |
+| 6 | dbt models and tests for claims, finance and fraud marts | Done 20 Oct 2026. Totals reconcile from RAW to marts to the cent. See [dbt/README.md](dbt/README.md) |
+| 7 | Airflow runs the daily pipeline | In progress. DAG `polaris_daily` (8 tasks) is built and has run 10 business days. Great Expectations gates, lineage and dashboards not built |
 
----
+### The 10-day production run
 
-## Why this exists
+To practise running this like a real production job, Airflow ran ten business days
+(19-28 Oct 2026) back to back in one session. Each run was given its business date as a
+parameter, the same way a backfill works. Nothing in the pipeline reads the clock, so re-running
+any day gives the same result.
 
-A mid-sized P&C carrier I modeled this on runs claims on a legacy mainframe, policy administration on a vendor SaaS, and the Special Investigations Unit (SIU) operates from CSV exports. Three problems compound:
+When a step failed, Airflow opened a GitHub issue. Those issues are worked like on-call tickets:
+find the cause, fix it, re-run, and write a short root-cause note.
 
-- The CFO cannot reconcile loss reserves to IFRS 17 standards on a T+1 cadence.
-- The fraud team is blind until overnight ETL completes.
-- Actuaries cannot agree on the grain of a single claim.
+## Run it yourself
 
-Polaris resolves all three by landing raw policy + claims data into ADLS Gen2 (Bronze), conforming it in PySpark on Databricks (Silver) with SCD Type 2 dimensions, streaming First-Notice-of-Loss (FNOL) events through Kafka into a sub-minute fraud signal table, and serving curated marts via dbt + Snowflake (Gold).
-
-## Architecture
-
-See [docs/architecture.md](docs/architecture.md) for the full diagram and narrative.
-
-```
-sources → Python ingest → ADLS Bronze → Spark Silver (batch + streaming)
-        ↘ Kafka FNOL ↗            ↓
-                              Snowflake raw → dbt Gold marts → BI / Streamlit
-                                   ↑
-                          Great Expectations gates at every layer
-                          OpenLineage → Marquez (end-to-end lineage)
-                          Airflow orchestrates batch; Spark streaming is long-lived
-```
-
-## Quickstart
-
-> Prerequisites: Docker, `uv` (Python package manager), Terraform, Azure CLI, Snowflake account.
+You need Docker, [uv](https://docs.astral.sh/uv/), Terraform, the Azure CLI and a Snowflake account.
 
 ```bash
-make bootstrap     # install pre-commit hooks + Python deps
-cp .env.example .env && $EDITOR .env
-make up            # start local Kafka + Schema Registry
-make tf-init       # Snowflake Terraform; see infra/terraform/snowflake/README.md first
-make tf-plan
+make bootstrap                 # install Python tools and pre-commit hooks
+cp .env.example .env           # then fill in your Snowflake account and key path
+make up                        # local Docker stack (Postgres, Kafka)
+make tf-init && make tf-plan   # Snowflake Terraform; read infra/terraform/snowflake/README.md first
 ```
 
-End to end today (Stages 2, 5, 6):
+One day end to end:
 
 ```bash
-uv run polaris-ingest run --ingest-date 2026-10-16 --backend azure --account polaris599i8o
-# then ingestion/snowflake/load_raw.sql as POLARIS_LOADER_ROLE (COPY INTO RAW)
+uv run polaris-ingest run --ingest-date 2026-10-16 --backend azure --account <storage-account>
+# then run ingestion/snowflake/load_raw.sql as POLARIS_LOADER_ROLE (COPY INTO RAW)
 make dbt-setup && make dbt-build
 ```
 
-Targets for later stages (`seed`, `stream`, `ge-run`) are in the Makefile
-already but won't work until their stage lands.
+The whole day under Airflow: `orchestration/airflow.sh standalone`, then open localhost:8080.
 
-## Repo layout
+## What is in each folder
 
 ```
 polaris-claims-lakehouse/
-├── docs/             ADRs, architecture, data model, runbooks
-├── infra/            Terraform (Azure + Snowflake) + Docker stack
-├── ingestion/        Python CLI for Bronze landing
-├── streaming/        Kafka FNOL producer + Spark Structured Streaming jobs
-├── databricks/       Notebooks, job bundles, importable Silver transforms wheel
-├── dbt/              Staging → intermediate → marts (claims, fraud, finance, actuarial)
-├── quality/          Great Expectations checkpoints + YAML data contracts
-├── orchestration/    Airflow DAGs
-├── adf/              Optional Azure Data Factory trigger demo
-├── lineage/          OpenLineage + Marquez config
-├── security/         RBAC, secrets policy, threat model
-├── consumers/        Streamlit fraud console
-└── scripts/          Bootstrap, seed, replay utilities
+├── adf/              Data Factory pipeline, datasets and linked service as JSON (deployed by scripts/deploy_adf.sh)
+├── databricks/       Silver job and its Asset Bundle
+├── dbt/              Staging, intermediate and mart models, with tests
+├── docs/             Architecture, design decisions (ADRs), runbooks
+├── infra/            Terraform (Azure, Databricks, Snowflake) and the Docker stack
+├── ingestion/        Python tool for Bronze, Postgres extract, Snowflake load SQL
+├── orchestration/    Airflow DAGs and the start script
+├── quality/          Great Expectations suites (not yet wired into the pipeline)
+├── scripts/          Data generator, ADF deploy and run helpers
+├── streaming/        Stage 4 (empty for now)
+├── consumers/        Fraud dashboard (planned)
+├── lineage/          OpenLineage / Marquez (planned)
+└── security/         Threat model (planned)
 ```
 
-## Architecture Decision Records
+## Design decisions
 
-Every non-obvious technical choice in Polaris has a written ADR. See [docs/adr/](docs/adr/) for the index.
+Each important choice has a short written record (ADR) with the options and trade-offs. See
+[docs/adr/](docs/adr/).
 
-| # | Title | Status |
-|---|---|---|
-| [0001](docs/adr/0001-kafka-over-event-hubs.md) | Kafka over Event Hubs for FNOL streaming | Accepted |
-| [0002](docs/adr/0002-delta-over-iceberg.md) | Delta Lake over Apache Iceberg for Bronze/Silver | Accepted |
-| [0003](docs/adr/0003-snowflake-as-serving.md) | Snowflake as serving layer (not Databricks SQL) | Accepted |
-| [0004](docs/adr/0004-scd2-via-merge.md) | SCD Type 2 via Delta MERGE in Silver (not dbt snapshots) | Accepted |
-| [0005](docs/adr/0005-late-arriving-fnol.md) | Late-arriving FNOL — bounded watermark + batch reprocess | Accepted |
-| [0006](docs/adr/0006-partition-by-event-date-state.md) | Partition fact_claim by event_date + state_code | Accepted |
-| [0007](docs/adr/0007-streaming-outside-airflow.md) | Streaming runs as long-lived service outside Airflow | Accepted |
-| [0008](docs/adr/0008-secrets-keyvault-oidc.md) | Secrets via Azure Key Vault + GitHub OIDC federation | Accepted |
+| # | Decision |
+|---|---|
+| [0001](docs/adr/0001-kafka-over-event-hubs.md) | Kafka instead of Event Hubs for new-claim streaming |
+| [0002](docs/adr/0002-delta-over-iceberg.md) | Delta Lake instead of Iceberg for Bronze and Silver |
+| [0003](docs/adr/0003-snowflake-as-serving.md) | Snowflake serves the reports, not Databricks SQL |
+| [0004](docs/adr/0004-scd2-via-merge.md) | Policy history (SCD2) with a Delta MERGE in Silver, not dbt snapshots |
+| [0005](docs/adr/0005-late-arriving-fnol.md) | How to handle late-arriving claims |
+| [0006](docs/adr/0006-partition-by-event-date-state.md) | Partition the claims fact by event date and province |
+| [0007](docs/adr/0007-streaming-outside-airflow.md) | Streaming runs as its own long-running service, not inside Airflow |
+| [0008](docs/adr/0008-secrets-keyvault-oidc.md) | Secrets in Azure Key Vault; CI logs in to Azure with GitHub OIDC |
 
-## Data quality
+## Data quality today
 
-Two complementary layers, deliberately:
+- **dbt tests** on every model: keys unique and not null, valid values, relationships, and a
+  reconciliation test that RAW totals match the marts.
+- **ADF row-count check**: Bronze never keeps a vendor file shorter or longer than its manifest.
+- **Silver load audit**: every Databricks load records row counts and flags unexpected column changes.
+- Great Expectations suites exist in `quality/` but don't stop the pipeline yet (Stage 7).
 
-- **Great Expectations** runs at Bronze (file shape, schema, business-key not-null) and Silver (referential integrity, value-set domains). GE failures **hard-stop** the DAG.
-- **dbt tests** run at Gold (schema tests + dbt-utils + dbt-expectations + custom singular tests). dbt failures block downstream marts.
-- **Data contracts** in [`quality/data_contracts/`](quality/data_contracts/) are negotiated with producers; tests above are the enforcement layer.
+## Security today
 
-## Security
+- No passwords or keys in git. `.env`, Terraform variable files and private keys stay local.
+- Snowflake logins use key pairs, not passwords. Roles and grants are in Terraform.
+- Data Factory reads and writes storage as its own managed identity, with read-only access to
+  landing and write access only to Bronze. No storage keys are pasted anywhere.
+- Personal fields (SIN, date of birth) are dropped in dbt staging; a masking policy is planned.
+- Key Vault and GitHub OIDC (ADR 0008) are designed, not built yet.
 
-- Secrets live exclusively in Azure Key Vault. `.env` is for local dev only and is gitignored.
-- CI uses GitHub OIDC federation to Azure — no long-lived PATs in repository secrets.
-- Snowflake authentication uses key-pair (RSA), not passwords.
-- RBAC is managed in Terraform under `infra/terraform/snowflake/`.
-- A STRIDE-lite threat model is planned for `security/threat-model.md`.
+## Known limits
+
+- The data is synthetic. Claim amounts are inflated by the generator, so loss ratios are not
+  realistic. There is no actuarial mart until that is fixed (see [dbt/README.md](dbt/README.md)).
 
 ## License
 
