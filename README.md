@@ -1,12 +1,16 @@
 # Polaris — A Property & Casualty Insurance Claims Lakehouse
 
-> **Scope:** this is a design specification, not a running system. It contains 8 architecture
-> decision records, the target design, and scaffolding. The technology list below is the
-> *proposed* stack for the design, not a claim of production experience with each item.
+> **Scope:** part built, part design. Running today on real Azure and Snowflake (20 Oct 2026):
+> Python ingest → ADLS Bronze → Snowflake RAW (storage integration + COPY INTO) → dbt staging
+> and marts, all provisioned with Terraform, 60 dbt tests passing. Databricks Silver, Kafka
+> streaming, ADF, Postgres CDC and Airflow are designed (ADRs) but not built. See the table.
 
 > Production-grade P&C insurance claims lakehouse on Azure + Snowflake. Medallion (Bronze/Silver/Gold) with PySpark on Databricks and dbt; real-time FNOL fraud streaming via Kafka + Structured Streaming; orchestrated by Airflow; Terraform IaC; Azure Key Vault + GitHub OIDC; Great Expectations, OpenLineage, and an ADR for every key trade-off.
 
 ## Build progress
+
+Built so far: 0, 1, 2, 5 and 6, so data runs end to end from the Python CLI to dbt marts in
+Snowflake. Stage 5 was moved ahead of 2b, 2c, 3 and 4 to get there first.
 
 The design is complete (8 ADRs). The build follows the seven-stage plan, plus
 2b and 2c to cover more ingestion patterns, one stage per pull request. A stage is marked done only after it has run against
@@ -22,7 +26,7 @@ real infrastructure.
 | 3 | Silver: PySpark SCD2 on Databricks | Not started |
 | 4 | Streaming: Kafka FNOL producer + Spark Structured Streaming | Not started (Kafka stack runs locally) |
 | 5 | Snowflake landing: COPY INTO from the ADLS external stage | Done: 20 Oct 2026, storage integration + external stage, RAW 3,000 / 5,000 / 10,000 / 11,203, re-run loads 0 files |
-| 6 | dbt Gold marts | Scaffolding only |
+| 6 | dbt staging + marts (claims, finance, fraud) | Done: 20 Oct 2026, `dbt build` PASS=60, reconciliation RAW → marts to the cent. See [dbt/README.md](dbt/README.md). Actuarial mart waits on a generator fix |
 | 7 | Orchestration, data quality, lineage, BI | Not started |
 
 ---
@@ -63,8 +67,16 @@ make tf-init       # Snowflake Terraform; see infra/terraform/snowflake/README.m
 make tf-plan
 ```
 
-Targets for later stages (`seed`, `stream`, `dbt-build`, `ge-run`) are in the
-Makefile already but won't work until their stage lands.
+End to end today (Stages 2, 5, 6):
+
+```bash
+uv run polaris-ingest run --ingest-date 2026-10-16 --backend azure --account polaris599i8o
+# then ingestion/snowflake/load_raw.sql as POLARIS_LOADER_ROLE (COPY INTO RAW)
+make dbt-setup && make dbt-build
+```
+
+Targets for later stages (`seed`, `stream`, `ge-run`) are in the Makefile
+already but won't work until their stage lands.
 
 ## Repo layout
 

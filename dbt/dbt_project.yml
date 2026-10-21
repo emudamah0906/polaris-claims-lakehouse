@@ -19,6 +19,9 @@ clean-targets:
 
 require-dbt-version: [">=1.8.0", "<2.0.0"]
 
+# Schemas are Terraform's (infra/terraform/snowflake). The dbt role can build
+# inside STAGING and MARTS but can't create schemas, so +schema names one that
+# already exists. macros/generate_schema_name.sql uses it as-is.
 models:
   polaris:
     staging:
@@ -28,24 +31,11 @@ models:
       +materialized: ephemeral
     marts:
       +materialized: table
-      claims:
-        +schema: marts_claims
-      fraud:
-        +schema: marts_fraud
-      finance:
-        +schema: marts_finance
-      actuarial:
-        +schema: marts_actuarial
+      +schema: marts
 
-snapshots:
-  polaris:
-    +target_schema: snapshots
-    +strategy: timestamp
-    +updated_at: updated_at
-
-seeds:
-  polaris:
-    +schema: seeds
+# No dbt snapshots: SCD2 history is built in Silver with MERGE (ADR-0004).
 
 vars:
-  fnol_late_arrival_window_days: 7
+  fnol_late_arrival_window_days: 7   # report more than this many days after the loss = late FNOL
+  fraud_recent_policy_days: 30       # loss this soon after the policy started = fraud signal
+  fraud_model_score_threshold: 0.7

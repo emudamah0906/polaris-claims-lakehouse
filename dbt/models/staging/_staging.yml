@@ -1,0 +1,91 @@
+version: 2
+
+# not_null on a cast column also catches a value TRY_ couldn't convert.
+
+models:
+  - name: stg_customers
+    description: One row per customer. Direct PII removed; it stays in RAW.
+    columns:
+      - name: customer_id
+        data_tests: [unique, not_null]
+      - name: birth_year
+        data_tests: [not_null]
+      - name: customer_since
+        data_tests: [not_null]
+
+  - name: stg_policies
+    description: One row per policy, typed.
+    columns:
+      - name: policy_id
+        data_tests: [unique, not_null]
+      - name: customer_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_customers')
+                field: customer_id
+      - name: product_type
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['AUTO', 'PROPERTY']
+      - name: status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['ACTIVE', 'EXPIRED', 'CANCELLED']
+      - name: effective_date
+        data_tests: [not_null]
+      - name: annual_premium
+        data_tests: [not_null]
+      - name: coverage_limit
+        data_tests: [not_null]
+
+  - name: stg_claims
+    description: One row per claim, typed.
+    columns:
+      - name: claim_id
+        data_tests: [unique, not_null]
+      - name: policy_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_policies')
+                field: policy_id
+      - name: status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['OPEN', 'CLOSED', 'PAID', 'DENIED']
+      - name: loss_date
+        data_tests: [not_null]
+      - name: report_date
+        data_tests: [not_null]
+      - name: claim_amount
+        data_tests: [not_null]
+      - name: is_fraud
+        data_tests: [not_null]
+
+  - name: stg_claim_payments
+    description: One row per payment, typed.
+    columns:
+      - name: payment_id
+        data_tests: [unique, not_null]
+      - name: claim_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_claims')
+                field: claim_id
+      - name: payment_type
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['INDEMNITY', 'EXPENSE', 'RECOVERY']
+      - name: payment_date
+        data_tests: [not_null]
+      - name: payment_amount
+        data_tests: [not_null]

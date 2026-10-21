@@ -28,11 +28,20 @@ stream: ## Start the FNOL Kafka producer (Ctrl-C to stop)
 	uv run python streaming/fnol_producer/src/main.py --rate 10
 
 # ── Transform ──────────────────────────────────────────────────────────────
+# dbt has its own Python 3.12 venv: dbt 1.11 doesn't run on the root venv's 3.14.
+# Connection values come from .env (gitignored).
+DBT = cd dbt && set -a && . ../.env && set +a && .venv/bin/dbt
+
+dbt-setup: ## Create dbt's venv and install packages
+	uv venv --python 3.12 dbt/.venv.nosync && ln -sfn .venv.nosync dbt/.venv
+	VIRTUAL_ENV=dbt/.venv.nosync uv pip install -r dbt/requirements.txt
+	$(DBT) deps --profiles-dir profiles
+
 dbt-build: ## Run full dbt build (run + test)
-	cd dbt && dbt build --target dev
+	$(DBT) build --profiles-dir profiles --target dev
 
 dbt-test: ## Run dbt tests only
-	cd dbt && dbt test --target dev
+	$(DBT) test --profiles-dir profiles --target dev
 
 ge-run: ## Run the RAW Great Expectations checkpoint (needs Stage 5 RAW tables)
 	cd quality/great_expectations && uv run great_expectations checkpoint run raw_polaris
@@ -66,4 +75,4 @@ bootstrap: ## One-time: install pre-commit hooks + python deps
 	uv sync --all-extras
 	uv run pre-commit install
 
-.PHONY: help up down logs seed ingest stream dbt-build dbt-test ge-run tf-init tf-plan tf-apply lint fmt test bootstrap
+.PHONY: help up down logs seed ingest stream dbt-setup dbt-build dbt-test ge-run tf-init tf-plan tf-apply lint fmt test bootstrap

@@ -1,0 +1,2 @@
+dbt-core==1.11.8
+dbt-snowflake>=1.11,<1.12
