@@ -21,7 +21,7 @@ real infrastructure.
 | 2c | Azure Data Factory: landing → Bronze copy with a row-count check | Not started |
 | 3 | Silver: PySpark SCD2 on Databricks | Not started |
 | 4 | Streaming: Kafka FNOL producer + Spark Structured Streaming | Not started (Kafka stack runs locally) |
-| 5 | Snowflake landing: COPY INTO from the ADLS external stage | Next (moved up so ADLS → Snowflake → dbt works end to end first) |
+| 5 | Snowflake landing: COPY INTO from the ADLS external stage | Done: 20 Oct 2026, storage integration + external stage, RAW 3,000 / 5,000 / 10,000 / 11,203, re-run loads 0 files |
 | 6 | dbt Gold marts | Scaffolding only |
 | 7 | Orchestration, data quality, lineage, BI | Not started |
 

@@ -86,7 +86,7 @@ resource "snowflake_grant_privileges_to_account_role" "usage_wh" {
 
 # ── Loader: write RAW ─────────────────────────────────────────────────────────
 # CREATE TABLE so the load DAG can create RAW tables on first run.
-# CREATE STAGE / file formats arrive with Stage 5.
+# The stage and file format are Terraform's (landing.tf); the loader only uses them.
 
 resource "snowflake_grant_privileges_to_account_role" "loader_raw_schema" {
   account_role_name = snowflake_account_role.loader.name

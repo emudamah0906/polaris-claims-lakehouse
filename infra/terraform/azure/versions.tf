@@ -10,6 +10,11 @@ terraform {
       source  = "hashicorp/random"
       version = "~> 3.6"
     }
+    # Stage 5: looks up Snowflake's app in Azure AD by name
+    azuread = {
+      source  = "hashicorp/azuread"
+      version = "~> 3.0"
+    }
   }
 
   # Local state for now, same as the Snowflake stack. Once this storage
@@ -26,3 +31,6 @@ provider "azurerm" {
   # Terraform logs in with your `az login` session. No keys or secrets in
   # this folder (ADR-0008).
 }
+
+# Same `az login` session, same tenant.
+provider "azuread" {}

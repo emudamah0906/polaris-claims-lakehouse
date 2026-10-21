@@ -30,4 +30,12 @@ provider "snowflake" {
 
   # Only Terraform runs as ACCOUNTADMIN. Every pipeline uses the roles in roles.tf.
   role = "ACCOUNTADMIN"
+
+  # In provider v1 these three resources are "preview": they can change in a
+  # minor release, so the provider makes you switch each one on by name.
+  preview_features_enabled = [
+    "snowflake_storage_integration_resource",
+    "snowflake_file_format_resource",
+    "snowflake_stage_resource",
+  ]
 }
