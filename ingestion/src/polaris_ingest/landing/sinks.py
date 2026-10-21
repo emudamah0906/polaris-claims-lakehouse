@@ -24,6 +24,10 @@ class Sink(ABC):
     def delete(self, key: str) -> None:
         """Remove `key` if it exists. No error if it doesn't."""
 
+    @abstractmethod
+    def read(self, key: str) -> bytes | None:
+        """The bytes at `key`, or None if nothing is there. Stage 2b reads its watermark file."""
+
 
 class LocalSink(Sink):
     def __init__(self, root: str | Path) -> None:
@@ -46,6 +50,10 @@ class LocalSink(Sink):
 
     def delete(self, key: str) -> None:
         (self.root / key).unlink(missing_ok=True)
+
+    def read(self, key: str) -> bytes | None:
+        path = self.root / key
+        return path.read_bytes() if path.is_file() else None
 
 
 class AdlsSink(Sink):
@@ -93,6 +101,14 @@ class AdlsSink(Sink):
             self.fs.get_file_client(key).delete_file()
         except ResourceNotFoundError:
             pass  # already gone is fine
+
+    def read(self, key: str) -> bytes | None:
+        from azure.core.exceptions import ResourceNotFoundError
+
+        try:
+            return self.fs.get_file_client(key).download_file().readall()
+        except ResourceNotFoundError:
+            return None
 
 
 def make_sink(

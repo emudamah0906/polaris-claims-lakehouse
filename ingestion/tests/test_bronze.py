@@ -46,6 +46,9 @@ class RecordingSink(Sink):
     def delete(self, key):
         self.calls.append(("delete", key))
 
+    def read(self, key):
+        return None
+
 
 def test_marker_deleted_first_and_written_last():
     sink = RecordingSink()
@@ -119,6 +122,12 @@ class FakeFile:
         if self.key not in self.store:
             raise ResourceNotFoundError("not found")
         del self.store[self.key]
+
+    def download_file(self):
+        if self.key not in self.store:
+            raise ResourceNotFoundError("not found")
+        data = self.store[self.key]
+        return type("Downloader", (), {"readall": lambda _self: data})()
 
 
 class FakeFileSystem:

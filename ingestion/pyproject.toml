@@ -7,6 +7,7 @@ dependencies = [
     "faker>=25.0",
     "azure-identity>=1.17",
     "azure-storage-file-datalake>=12.16",
+    "psycopg[binary]>=3.2",  # Stage 2b: the Postgres claims system
 ]
 
 [project.scripts]

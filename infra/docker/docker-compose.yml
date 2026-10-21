@@ -70,5 +70,30 @@ services:
       retries: 10
       start_period: 15s
 
+  # ── Postgres: the claims system (Stage 2b) ─────────────────────────────────
+  # Plays the operational database the claims app writes to. polaris-ingest
+  # loads it (pg-load) and extracts only changed rows from it (extract).
+  # Host port 5433, so it can't clash with a Postgres already on 5432.
+  # The password is for this local container only.
+  postgres:
+    image: postgres:16
+    container_name: polaris-postgres
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: polaris
+      POSTGRES_USER: polaris
+      POSTGRES_PASSWORD: ${POLARIS_PG_PASSWORD:-polaris_local}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      # Runs once, on first start with an empty volume: creates claims_system
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "polaris", "-d", "polaris"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
 volumes:
   kafka-data:
+  postgres-data:
