@@ -20,6 +20,7 @@ issue: polaris_alerts.open_incident.
 
 from __future__ import annotations
 
+import os
 from datetime import timedelta
 
 import pendulum
@@ -39,6 +40,11 @@ YMD = "-D year={{ macros.ds_format(ds, '%Y-%m-%d', '%Y') }} " \
       "-D month={{ macros.ds_format(ds, '%Y-%m-%d', '%m') }} " \
       "-D day={{ macros.ds_format(ds, '%Y-%m-%d', '%d') }}"
 
+# A scheduled DAG never starts a run before its logical date, even one you
+# trigger by hand. To run future business days back to back (compressed
+# time), the DAG has no schedule and the runs are triggered instead.
+SCHEDULE = None if os.environ.get("POLARIS_COMPRESSED_TIME") == "1" else "@daily"
+
 default_args = {
     "owner": "data-platform",
     "retries": 1,
@@ -50,7 +56,7 @@ with DAG(
     dag_id="polaris_daily",
     description="Claims system + vendor feed → Bronze → Snowflake RAW → dbt marts",
     start_date=pendulum.datetime(2026, 10, 19, tz="UTC"),
-    schedule="@daily",
+    schedule=SCHEDULE,
     catchup=False,
     max_active_runs=1,          # business days run in order, one at a time
     default_args=default_args,
